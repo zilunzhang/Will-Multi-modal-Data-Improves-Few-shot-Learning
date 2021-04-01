@@ -1,0 +1,21 @@
+NAME:
+  "cub_200_2011"
+
+DESCRIPTION:
+  "Traditional Few-Shot Learning for cub_200_2011 dataset"
+
+# result file root
+RESULT_FILE_DIR:
+  "result_files"
+
+RUN_FILE_DIR:
+  "run_files"
+
+FSL_INFO:
+  EVALUATION_PROTOCOL: "traditional FSL evaluation protocol"
+  N:
+    5
+  K:
+    1
+  Q:
+    15
