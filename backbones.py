@@ -4,6 +4,40 @@ import torch.nn as nn
 from typing import Type, Any, Callable, Union, List, Optional
 
 
+def conv_block(in_channels, out_channels):
+    bn = nn.BatchNorm2d(out_channels)
+    nn.init.uniform_(bn.weight) # for pytorch 1.2 or later
+    return nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, 3, padding=1),
+        bn,
+        nn.ELU(),
+        nn.MaxPool2d(2)
+    )
+
+
+class ConvNet(nn.Module):
+
+    def __init__(self, emb_size, x_dim=3, hid_dim=32, z_dim=32):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            conv_block(x_dim, hid_dim),
+            conv_block(hid_dim, hid_dim),
+            conv_block(hid_dim, hid_dim),
+            conv_block(hid_dim, z_dim),
+        )
+        self.out_channels = 800
+        self.fc = nn.Linear(self.out_channels, 800)
+
+    def forward(self, x):
+        x = self.encoder(x)
+
+        flatten_x =  x.view(x.size(0), -1)
+
+        out = self.fc(flatten_x)
+        out = flatten_x
+        return out
+    
+
 class ResNet12Block(nn.Module):
     """
     ResNet Block
