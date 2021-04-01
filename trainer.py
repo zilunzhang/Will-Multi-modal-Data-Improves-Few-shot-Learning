@@ -2,7 +2,7 @@ import pytorch_lightning as pl
 import torch
 import os
 import numpy as np
-from backbones import ResNet12
+from backbones import ResNet12, ConvNet
 from models import *
 from torchmeta.datasets.helpers import *
 from dataset import custom_dataset
