@@ -94,7 +94,7 @@ def run(config):
     trainer.fit(fsl_trainer)
 
     test_dataset = custom_dataset(
-        config['sampling_policy'],
+        config["data"],
         ways=config['num_way'],
         shots=config['num_shot'],
         test_shots=config['num_query'],
