@@ -14,8 +14,8 @@ def set_up_config(select_func=tune.grid_search):
                 ]),
             "backbone":
                 select_func([
-                    # 'ConvNet',
-                    'ResNet12',
+                    'ConvNet',
+#                     'ResNet12',
                     # 'resnet18',
                 ]),
 
