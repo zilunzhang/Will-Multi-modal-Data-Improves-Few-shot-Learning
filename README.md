@@ -1,4 +1,5 @@
 # CSC2541 Course Project By Shihao Ma, Yichun Zhang, Zilun Zhang
+## How Multimodal Data Improved Few Shot Learning
 
 Implementation of course project of **CSC2541 Winter 2021 Topics in Machine Learning: Neural Net Training Dynamics**
 
