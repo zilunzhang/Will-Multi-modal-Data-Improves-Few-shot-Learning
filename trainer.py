@@ -23,7 +23,7 @@ class FSLTrainer(pl.LightningModule):
         self.best_val_acc = 0
         self.best_test_acc = 0
         self.image_backbone = self.create_backbone(hpparams['emb_size'])
-        self.text_backbone = SentenceEncoder()
+        self.text_backbone = SentenceEncoder(hpparams['emb_size'])
         self.model = eval(hpparams['model'])(num_way=hpparams['num_way'], num_shot=hpparams['num_shot'],
                                              num_query=hpparams['num_query'], model_configs=None)
         self.config = None
@@ -183,20 +183,19 @@ class FSLTrainer(pl.LightningModule):
         # input = torch.cat((support_data, query_data), 1)
         # img_vis(self.hpparams['num_way'], support_data, query_data, index)
 
-        # (1, 80, 128)
-        support_feature = backbone_two_stage_initialization(support_image_data, self.image_backbone)
-        query_feature = backbone_two_stage_initialization(query_image_data, self.image_backbone)
+        # (bs, num_way * num_shot, emb_size)
+        support_image_feature = backbone_two_stage_initialization(support_image_data, self.image_backbone)
+        # (bs, num_way * num_query, emb_size)
+        query_image_feature = backbone_two_stage_initialization(query_image_data, self.image_backbone)
 
-        sentence_to_id = self.hparams['sentence_to_id']
         id_to_sentence = self.hparams['id_to_sentence']
 
+        # (bs, num_way * num_shot, emb_size)
+        support_text_feature = backbone_sentence_embedding(support_test_text, self.text_backbone, id_to_sentence)
+        # (bs, num_way * num_query, emb_size)
+        query_text_feature = backbone_sentence_embedding(query_text_data, self.text_backbone, id_to_sentence)
 
-        support_text = backbone_sentence_embedding(support_test_text, self.text_backbone, id_to_sentence)
-        query_text = backbone_sentence_embedding(query_text_data, self.text_backbone, id_to_sentence)
-
-
-
-        accuracy, ce_loss = self.model([support_feature, query_feature], support_labels, query_labels)
+        accuracy, ce_loss = self.model([support_image_feature, query_image_feature, support_text_feature, query_text_feature], support_labels, query_labels)
         loss = ce_loss
         return loss, accuracy
 

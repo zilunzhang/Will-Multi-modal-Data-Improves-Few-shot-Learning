@@ -75,8 +75,8 @@ def run(config):
     checkpoint_callback = ModelCheckpoint()
     trainer = pl.Trainer(
         # early_stop_callback=early_stop_callback,
-        fast_dev_run=True,
         # checkpoint_callback=checkpoint_callback,
+        # fast_dev_run=True,
         deterministic=True,
         num_sanity_val_steps=0,
         max_epochs=config['num_epoch'],
@@ -108,7 +108,7 @@ def run(config):
     test_dataloader = BatchMetaDataLoader(test_dataset, shuffle=False, batch_size=config['batch_size'], num_workers=config['num_cpu'], pin_memory=True)
 
     test_result = trainer.test(test_dataloaders=test_dataloader)
-    tune.report(test_result=test_result[0]["test_accuracy_mean"])
+    tune.report(test_result=test_result["test_accuracy_mean"])
 
     print('trail: {}, test accuracy: {}'.format(exp_name, test_result))
 
@@ -119,9 +119,9 @@ def main():
                         help='path of task file')
     parser.add_argument('--budgets', type=int, default=1,
                         help='number of budgets')
-    parser.add_argument('--num_gpu', type=int, default=0,
+    parser.add_argument('--num_gpu', type=int, default=1,
                         help='number of gpu per trail')
-    parser.add_argument('--num_cpu', type=int, default=0,
+    parser.add_argument('--num_cpu', type=int, default=32,
                         help='number of cpu per trail')
     parser.add_argument('--exp_dir', type=str,
                         # required=True,
@@ -138,7 +138,7 @@ def main():
                         help='number of batch for test')
     parser.add_argument('--num_epoch', type=int, default=500,
                         help='number of epoch')
-    parser.add_argument('--batch_size', type=int, default=1,
+    parser.add_argument('--batch_size', type=int, default=5,
                         help='number of episode per batch')
     parser.add_argument('--select_func', type=str, default='grid',
                         help='function for selecting hp')
@@ -202,14 +202,13 @@ def main():
         reuse_actors=True,
     )
 
-    os.makedirs(os.path.join("..", task_yaml["RUN_FILE_DIR"]), exist_ok=True)
-
-    yaml_export = os.path.join("..", task_yaml["RUN_FILE_DIR"], task_yaml["NAME"] + ".run.yaml")
-    print(yaml_export)
-    with open(yaml_export, 'w') as file:
-        yaml.dump({"task_id": uuid.uuid4().int}, file)
-        yaml.dump({"task_config": task_yaml}, file)
-        yaml.dump({"model_config": config}, file)
+    # os.makedirs(os.path.join("..", task_yaml["RUN_FILE_DIR"]), exist_ok=True)
+    # yaml_export = os.path.join("..", task_yaml["RUN_FILE_DIR"], task_yaml["NAME"] + ".run.yaml")
+    # print(yaml_export)
+    # with open(yaml_export, 'w') as file:
+    #     yaml.dump({"task_id": uuid.uuid4().int}, file)
+    #     yaml.dump({"task_config": task_yaml}, file)
+    #     yaml.dump({"model_config": config}, file)
 
 
 if __name__ == '__main__':

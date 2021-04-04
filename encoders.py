@@ -6,12 +6,12 @@ from sentence_transformers import SentenceTransformer, models
 
 
 class SentenceEncoder(nn.Module):
-    def __init__(self):
+    def __init__(self, emb_size):
         super().__init__()
 
         # add the sentence embedding model
         self.word_embedding_model = models.Transformer(
-            "bert-base-uncased", max_seq_length=256
+            "bert-base-uncased", max_seq_length=emb_size
         )
         self.pooling_model = models.Pooling(
             self.word_embedding_model.get_word_embedding_dimension()
@@ -20,22 +20,44 @@ class SentenceEncoder(nn.Module):
             modules=[self.word_embedding_model, self.pooling_model]
         )
 
-        self.out_features = 256
+        self.out_features = emb_size
         self.fc = nn.Linear(
             self.pooling_model.get_sentence_embedding_dimension(), self.out_features
         )
 
-    def forward(self, x):
 
+    def forward(self, x, id_sentence_mapping):
+        # # flatten list of tuple to just list
+        # x_input = [item for t in x for item in t]
+        # x = self.encoder.encode(x_input)
+        # x = torch.from_numpy(x)
+        #
+        # out = self.fc(x)
+        # return out
 
-        # flatten list of tuple to just list
-        x_input = [item for t in x for item in t]
-        x = self.encoder.encode(x_input)
-        x = torch.from_numpy(x)
-
-        out = self.fc(x)
+        device = torch.device('cuda' if x.is_cuda else 'cpu')
+        num_instance, num_sentence_per_instance = x.shape
+        # x: (5, 10)
+        self.merge_tenshot_fc = nn.Conv1d(num_sentence_per_instance, 1, 1).to(device)
+        self.fc = self.fc.to(device)
+        # x: (50, )
+        x = torch.reshape(x, (-1, ))
+        x_sentence = []
+        for item in x:
+            key = str(int(item.cpu().detach().numpy()))
+            sentence = id_sentence_mapping[key]
+            x_sentence.append(sentence)
+        # x = [id_sentence_mapping[str(int(item.cpu().detach().numpy()))] for item in x]
+        x = x_sentence
+        # x: (50, 768)
+        x = torch.from_numpy(self.encoder.encode(x)).to(device)
+        # x: (50, 800)
+        x = self.fc(x)
+        # x: (5, 10, 800)
+        x = torch.reshape(x, (num_instance, num_sentence_per_instance, -1))
+        # x: (5, 800)
+        out = self.merge_tenshot_fc(x).squeeze(1)
         return out
-
 
 def conv_block(in_channels, out_channels):
     bn = nn.BatchNorm2d(out_channels)
@@ -58,16 +80,15 @@ class ConvNet(nn.Module):
             conv_block(hid_dim, hid_dim),
             conv_block(hid_dim, z_dim),
         )
-        self.out_channels = 800
-        self.fc = nn.Linear(self.out_channels, 800)
+        self.out_channels = emb_size
+        self.fc = nn.Linear(self.out_channels, emb_size)
 
     def forward(self, x):
         x = self.encoder(x)
 
         flatten_x =  x.view(x.size(0), -1)
-
         out = self.fc(flatten_x)
-        out = flatten_x
+        # out = flatten_x
         return out
     
 
@@ -172,16 +193,6 @@ class ResNet12(nn.Module):
         x = x.view(x.size(0), -1)
         # 512 -> 128
         x = self.layer_last(x)
-        # inter = self.maxpool(inter)
-        # # 256 * 5 * 5
-        # inter = inter.view(inter.size(0), -1)
-        # # 256 * 5 * 5 -> 128
-        # inter = self.layer_second(inter)
-        # out = []
-        # out.append(x)
-        # out.append(inter)
-        # no FC here
-        # return out
         return x
 
 

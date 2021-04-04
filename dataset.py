@@ -90,12 +90,12 @@ class ClassSplitter_(Splitter):
                 num_make_up = self._min_samples_per_class - num_samples
                 data_make_up = np.random.choice(dataset_indices, num_make_up)
                 dataset_indices = np.append(dataset_indices, data_make_up)
+            else:
+                dataset_indices = np.arange(num_samples)
 
             if self.shuffle:
                 seed = (hash(task) + self.random_state_seed) % (2 ** 32)
-                dataset_indices = np.random.RandomState(seed).permutation(num_samples)
-            else:
-                dataset_indices = np.arange(num_samples)
+                dataset_indices = np.random.RandomState(seed).permutation(dataset_indices)
 
             ptr = 0
             for split, num_split in self.splits.items():
@@ -118,11 +118,13 @@ class ClassSplitter_(Splitter):
                 num_make_up = self._min_samples_per_class - num_samples
                 data_make_up = np.random.choice(dataset_indices, num_make_up)
                 dataset_indices = np.append(dataset_indices, data_make_up)
+
+            else:
+                dataset_indices = np.arange(num_samples)
+
             if self.shuffle:
                 seed = (hash(task) + self.random_state_seed) % (2 ** 32)
                 dataset_indices = np.random.RandomState(seed).permutation(num_samples)
-            else:
-                dataset_indices = np.arange(num_samples)
 
             ptr = 0
             for split, num_split in self.splits.items():
