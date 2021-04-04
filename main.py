@@ -125,7 +125,7 @@ def main():
                         help='number of cpu per trail')
     parser.add_argument('--exp_dir', type=str,
                         # required=True,
-                        default='result-nori',
+                        default='result_files',
                         help='experiment name')
     parser.add_argument('--dataset_root', type=str,
                         default='pkl',
@@ -136,7 +136,7 @@ def main():
                         help='number of batch for validation')
     parser.add_argument('--test_size', type=int, default=1000,
                         help='number of batch for test')
-    parser.add_argument('--num_epoch', type=int, default=500,
+    parser.add_argument('--num_epoch', type=int, default=100,
                         help='number of epoch')
     parser.add_argument('--batch_size', type=int, default=30,
                         help='number of episode per batch')
