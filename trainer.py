@@ -3,6 +3,7 @@ import torch
 import os
 import numpy as np
 from backbones import ResNet12, ConvNet
+from sentence_embedding_backbones import SentenceEncoder
 from models import *
 from torchmeta.datasets.helpers import *
 from dataset import custom_dataset
@@ -23,6 +24,7 @@ class FSLTrainer(pl.LightningModule):
         self.best_val_acc = 0
         self.best_test_acc = 0
         self.backbone = self.create_backbone(hpparams['emb_size'])
+        self.text_backbone = SentenceEncoder()
         self.model = eval(hpparams['model'])(num_way=hpparams['num_way'], num_shot=hpparams['num_shot'],
                                              num_query=hpparams['num_query'], model_configs=None)
         self.config = None
@@ -81,7 +83,7 @@ class FSLTrainer(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
-        train_loss, train_accuracy = self.forward(support_data, query_data, support_labels, query_labels, batch_idx)
+        train_loss, train_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx)
 
         train_tensorboard_logs = {'training_loss': train_loss, 'training_accuracy': train_accuracy}
         self.trainer.logger.log_metrics(train_tensorboard_logs, step=self.trainer.global_step)
@@ -96,7 +98,7 @@ class FSLTrainer(pl.LightningModule):
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
 
-        valid_loss, valid_accuracy = self.forward(support_data, query_data, support_labels, query_labels, batch_idx)
+        valid_loss, valid_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx)
 
         valid_tensorboard_logs = {'valid_loss': valid_loss, 'valid_accuracy': valid_accuracy}
         self.trainer.logger.log_metrics(valid_tensorboard_logs, step=self.trainer.global_step)
@@ -138,7 +140,7 @@ class FSLTrainer(pl.LightningModule):
             support_data, query_data, support_labels, query_labels = support_data.to("cuda"), query_data.to(
                 "cuda"), support_labels.to("cuda"), query_labels.to("cuda")
 
-        test_loss, test_accuracy = self.forward(support_data, query_data, support_labels, query_labels, batch_idx)
+        test_loss, test_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx)
 
         test_tensorboard_logs = {'test_loss': test_loss, 'test_accuracy': test_accuracy}
         self.trainer.logger.log_metrics(test_tensorboard_logs, step=self.trainer.global_step)
@@ -171,7 +173,7 @@ class FSLTrainer(pl.LightningModule):
         results = {'log': test_tensorboard_logs}
         return results
 
-    def forward(self, original_support_data, original_query_data, original_support_labels, original_query_labels,
+    def forward(self, original_support_data, original_query_data, original_support_text, original_query_text, original_support_labels, original_query_labels,
                 index):
         # (1, 80, 3, 84, 84)
         support_data, query_data, support_labels, query_labels = original_support_data, original_query_data, original_support_labels, original_query_labels
@@ -181,6 +183,13 @@ class FSLTrainer(pl.LightningModule):
         # (1, 80, 128)
         support_feature = backbone_two_stage_initialization(original_support_data, self.backbone)
         query_feature = backbone_two_stage_initialization(original_query_data, self.backbone)
+
+        support_text = backbone_sentence_embedding(original_support_text, self.text_backbone)
+        query_text = backbone_sentence_embedding(original_query_text, self.text_backbone)
+
+        #import ipdb
+        #ipdb.set_trace()
+
         accuracy, ce_loss = self.model([support_feature, query_feature], support_labels, query_labels)
         loss = ce_loss
         return loss, accuracy

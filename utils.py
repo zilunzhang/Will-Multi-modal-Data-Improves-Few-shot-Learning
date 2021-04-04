@@ -1,8 +1,18 @@
 import torch
 import os
-from torchvision.transforms import Compose, Resize, ToTensor, Normalize, RandomCrop, RandomHorizontalFlip, ColorJitter, CenterCrop
+from torchvision.transforms import (
+    Compose,
+    Resize,
+    ToTensor,
+    Normalize,
+    RandomCrop,
+    RandomHorizontalFlip,
+    ColorJitter,
+    CenterCrop,
+)
 import numpy as np
 import matplotlib.pyplot as plt
+
 # import cv2
 import random
 import ray
@@ -10,7 +20,8 @@ import jsonlines
 import pandas as pd
 import argparse
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 
 
 def imagenet_transform(stage):
@@ -38,13 +49,14 @@ def imagenet_transform(stage):
     #         normalize
     #     ]
     #     )
-    transform = Compose([
-        Resize(84),
-        CenterCrop(84),
-        ToTensor(),
-        Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225])
-    ])
+    transform = Compose(
+        [
+            Resize(84),
+            CenterCrop(84),
+            ToTensor(),
+            Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
     return transform
 
 
@@ -60,7 +72,7 @@ def backbone_two_stage_initialization(full_data, encoder):
     last_layer_data_temp = []
     second_last_layer_data_temp = []
     last_layer_feature_map_temp = []
-    #for data in full_data.chunk(full_data.size(1), dim=1):
+    # for data in full_data.chunk(full_data.size(1), dim=1):
     #    # the encode step
     #    encoded_result = encoder(data.squeeze(1))
     #    # prepare for two stage initialization of DPGN
@@ -68,8 +80,8 @@ def backbone_two_stage_initialization(full_data, encoder):
     #    second_last_layer_data_temp.append(encoded_result[1])
     for data in full_data:
         encoded_result = encoder(data)
-        #import pdb
-        #if isinstance(encoded_result, tuple):
+        # import pdb
+        # if isinstance(encoded_result, tuple):
         #    pdb.set_trace()
         last_layer_data_temp.append(encoded_result)
         second_last_layer_data_temp.append(encoded_result)
@@ -87,21 +99,53 @@ def backbone_two_stage_initialization(full_data, encoder):
     return last_layer_data, second_last_layer_data, last_layer_feature_map
 
 
-def img_vis(way_num, support_data, query_data, index, save_dir='./vis'):
+def backbone_sentence_embedding(full_data, encoder):
+    """
+    encode raw data by backbone network
+    :param full_data: raw data
+    :param encoder: backbone network
+    :return: last layer logits from backbone network
+             second last layer logits from backbone network
+    """
+    # encode data
+    last_layer_data_temp = []
+
+    for data in full_data:
+
+        encoded_result = encoder(data)
+
+        last_layer_data_temp.append(encoded_result)
+
+    # last_layer_data: (batch_size, num_samples, embedding dimension)
+    last_layer_data = torch.stack(last_layer_data_temp, dim=0)
+
+    # print("last_layer_data shape: {}".format(last_layer_data.shape))
+    return last_layer_data
+
+
+def img_vis(way_num, support_data, query_data, index, save_dir="./vis"):
     assert support_data.shape[0] == 1 and query_data.shape[0] == 1
     os.makedirs(save_dir, exist_ok=True)
     # (5, 84, 84, 3)
     support_data_permute = support_data.permute(0, 1, 3, 4, 2).squeeze(0)
     # (75, 84, 84, 3)
     query_data_permute = query_data.permute(0, 1, 3, 4, 2).squeeze(0)
-    support_data_reshape = torch.reshape(support_data_permute, (way_num, -1, *support_data_permute.shape[1:]))
-    query_data_reshape = torch.reshape(query_data_permute, (way_num, -1, *query_data_permute.shape[1:]))
+    support_data_reshape = torch.reshape(
+        support_data_permute, (way_num, -1, *support_data_permute.shape[1:])
+    )
+    query_data_reshape = torch.reshape(
+        query_data_permute, (way_num, -1, *query_data_permute.shape[1:])
+    )
     device = support_data.get_device()
     # device = 'cpu' if device == -1 else device
     # (5, 1+15, 84, 84, 3)
-    black = torch.zeros(support_data_reshape.shape[0], 1, *support_data_reshape.shape[-3:])
+    black = torch.zeros(
+        support_data_reshape.shape[0], 1, *support_data_reshape.shape[-3:]
+    )
     black = black.cuda() if device != -1 else black
-    complete_tensor = torch.cat([support_data_reshape, black, query_data_reshape], dim=1)
+    complete_tensor = torch.cat(
+        [support_data_reshape, black, query_data_reshape], dim=1
+    )
     present_list = []
     for row in complete_tensor:
         tensor_list = [tensor for tensor in row]
@@ -110,7 +154,7 @@ def img_vis(way_num, support_data, query_data, index, save_dir='./vis'):
     present_tensor = torch.cat(present_list, dim=0)
     img = present_tensor.cpu().numpy() * 255
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    cv2.imwrite(os.path.join(save_dir, 'before_backbone_{}.png'.format(index)), img)
+    cv2.imwrite(os.path.join(save_dir, "before_backbone_{}.png".format(index)), img)
 
 
 def trans_data_order(data, label, num_way):
@@ -121,7 +165,9 @@ def trans_data_order(data, label, num_way):
     """
     data_reshape = torch.reshape(data, (data.shape[0], num_way, -1, data.shape[-1]))
     data_permute = data_reshape.permute(0, 2, 1, 3)
-    data_permute_flat = torch.reshape(data_permute, (data_permute.shape[0], -1, data_permute.shape[-1]))
+    data_permute_flat = torch.reshape(
+        data_permute, (data_permute.shape[0], -1, data_permute.shape[-1])
+    )
 
     label_reshape = torch.reshape(label, (label.shape[0], num_way, -1))
     label_permute = label_reshape.permute(0, 2, 1)
@@ -150,8 +196,9 @@ def get_accuracy(prototypes, embeddings, targets):
     accuracy : `torch.FloatTensor` instance
         Mean accuracy on the query points.
     """
-    sq_distances = torch.sum((prototypes.unsqueeze(1)
-        - embeddings.unsqueeze(2)) ** 2, dim=-1)
+    sq_distances = torch.sum(
+        (prototypes.unsqueeze(1) - embeddings.unsqueeze(2)) ** 2, dim=-1
+    )
     _, predictions = torch.min(sq_distances, dim=-1)
     return torch.mean(predictions.eq(targets).float())
 
@@ -167,7 +214,9 @@ def trans_data_order(data, label, num_way):
     """
     data_reshape = torch.reshape(data, (data.shape[0], num_way, -1, *data.shape[-3:]))
     data_permute = data_reshape.permute(0, 2, 1, 3, 4, 5)
-    data_permute_flat = torch.reshape(data_permute, (data_permute.shape[0], -1, *data_permute.shape[-3:]))
+    data_permute_flat = torch.reshape(
+        data_permute, (data_permute.shape[0], -1, *data_permute.shape[-3:])
+    )
     label_reshape = torch.reshape(label, (label.shape[0], num_way, -1))
     label_permute = label_reshape.permute(0, 2, 1)
     label_permute_flat = torch.reshape(label_permute, (label_permute.shape[0], -1))
@@ -190,7 +239,7 @@ def euclidean_metric(a, b):
     m = b.shape[0]
     a = a.unsqueeze(1).expand(n, m, -1)
     b = b.unsqueeze(0).expand(n, m, -1)
-    logits = -((a - b)**2).sum(dim=2)
+    logits = -((a - b) ** 2).sum(dim=2)
     return logits
 
 
@@ -200,8 +249,7 @@ def count_acc(logits, label):
 
 
 @ray.remote
-def get_objective_function(train,
-                           hpm):
+def get_objective_function(train, hpm):
     def objective_function(**kwargs):
         hpm.set_values(kwargs)
         return train()
@@ -219,15 +267,15 @@ def trial_name_string(trial):
     """
     print()
     param_dict = trial.evaluated_params
-    str = ''
-    #str += '{}-{}'.format('uuid', uuid)
-    str += '{}-{}'.format('backbone', param_dict['backbone'])
-    str += '_{}-{}'.format('model', param_dict['model'])
-    str += '_{}-{}'.format('seed', param_dict['seed'])
-    str += '_{}-{}'.format('lr', param_dict['lr'])
-    str += '_{}-{}'.format('weight_decay', param_dict['weight_decay'])
-    str += '_{}-{}'.format('lr_schedule_gamma', param_dict['lr_schedule_gamma'])
-    str += '_{}-{}'.format('lr_schedule_step_size', param_dict['lr_schedule_step_size'])
+    str = ""
+    # str += '{}-{}'.format('uuid', uuid)
+    str += "{}-{}".format("backbone", param_dict["backbone"])
+    str += "_{}-{}".format("model", param_dict["model"])
+    str += "_{}-{}".format("seed", param_dict["seed"])
+    str += "_{}-{}".format("lr", param_dict["lr"])
+    str += "_{}-{}".format("weight_decay", param_dict["weight_decay"])
+    str += "_{}-{}".format("lr_schedule_gamma", param_dict["lr_schedule_gamma"])
+    str += "_{}-{}".format("lr_schedule_step_size", param_dict["lr_schedule_step_size"])
     return str
 
 
@@ -238,7 +286,11 @@ def jsonlines_to_pandas(name):
     jsl = list(jsonlines.open(name))
     data_partition = jsl[:-1]
     meta_info = jsl[-1]
-    class_names, total_images, class_id_mapping = meta_info["all_classes"], meta_info["total_images"], meta_info["class_id_mapping"]
+    class_names, total_images, class_id_mapping = (
+        meta_info["all_classes"],
+        meta_info["total_images"],
+        meta_info["class_id_mapping"],
+    )
     df = pd.DataFrame(data_partition)
     return df, class_id_mapping
 
@@ -247,11 +299,11 @@ def plot_imbalance(gt_file_path, save_dir):
     gt_df, class_id_mapping = jsonlines_to_pandas(gt_file_path)
     str_names = gt_df["img_cls_name"]
     id_names = gt_df["img_cls_id"]
-    joined_name = [''.join(str(a) + "_" + str(b)) for a,b in zip(str_names, id_names)]
+    joined_name = ["".join(str(a) + "_" + str(b)) for a, b in zip(str_names, id_names)]
     gt_df["joined_name"] = joined_name
     total_class = len(set(gt_df["joined_name"]))
     total_imgs = gt_df.shape[0]
-    count_by_id = gt_df.groupby("joined_name").agg(['count'])["img_id"]
+    count_by_id = gt_df.groupby("joined_name").agg(["count"])["img_id"]
     x_names = np.array(count_by_id.index.tolist())
     y = count_by_id.to_numpy().flatten()
     y_sort_index = np.argsort(y)
@@ -271,10 +323,13 @@ def plot_imbalance(gt_file_path, save_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gt_file', type=str, required=True,
-                        help='path of gt file')
-    parser.add_argument('--export_dir', type=str, default="../categorical_statistics",
-                        help='path of categorical statistics')
+    parser.add_argument("--gt_file", type=str, required=True, help="path of gt file")
+    parser.add_argument(
+        "--export_dir",
+        type=str,
+        default="../categorical_statistics",
+        help="path of categorical statistics",
+    )
     args = parser.parse_args()
     os.makedirs(args.export_dir, exist_ok=True)
     plot_imbalance(args.gt_file, args.export_dir)
