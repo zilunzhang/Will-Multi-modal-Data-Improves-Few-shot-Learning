@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import random
 import ray
 import jsonlines
-import pandas as pd
 import argparse
 import matplotlib
 
@@ -202,33 +201,33 @@ def get_accuracy(prototypes, embeddings, targets):
     return torch.mean(predictions.eq(targets).float())
 
 
-def trans_data_order(data, label, num_way):
-    """
-    data: (1, 75, 3, 84, 84)
-    label: (1, 74)
-    case:
-           000011111222223333344444 -> 01234012340123401234
-                                or
-           01234012340123401234 -> 000011111222223333344444
-    """
-    data_reshape = torch.reshape(data, (data.shape[0], num_way, -1, *data.shape[-3:]))
-    data_permute = data_reshape.permute(0, 2, 1, 3, 4, 5)
-    data_permute_flat = torch.reshape(
-        data_permute, (data_permute.shape[0], -1, *data_permute.shape[-3:])
-    )
-    label_reshape = torch.reshape(label, (label.shape[0], num_way, -1))
-    label_permute = label_reshape.permute(0, 2, 1)
-    label_permute_flat = torch.reshape(label_permute, (label_permute.shape[0], -1))
-
-    return data_permute_flat, label_permute_flat
+# def trans_data_order(data, label, num_way):
+#     """
+#     data: (1, 75, 3, 84, 84)
+#     label: (1, 74)
+#     case:
+#            000011111222223333344444 -> 01234012340123401234
+#                                 or
+#            01234012340123401234 -> 000011111222223333344444
+#     """
+#     data_reshape = torch.reshape(data, (data.shape[0], num_way, -1, *data.shape[-3:]))
+#     data_permute = data_reshape.permute(0, 2, 1, 3, 4, 5)
+#     data_permute_flat = torch.reshape(
+#         data_permute, (data_permute.shape[0], -1, *data_permute.shape[-3:])
+#     )
+#     label_reshape = torch.reshape(label, (label.shape[0], num_way, -1))
+#     label_permute = label_reshape.permute(0, 2, 1)
+#     label_permute_flat = torch.reshape(label_permute, (label_permute.shape[0], -1))
+#
+#     return data_permute_flat, label_permute_flat
 
 
 def mannul_seed_everything(seed):
-    torch.manual_seed(seed)  # 为CPU设置随机种子
-    torch.cuda.manual_seed(seed)  # 为当前GPU设置随机种子
-    torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU，为所有GPU设置随机种子
-    np.random.seed(seed)  # Numpy module.
-    random.seed(seed)  # Python random module.
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
@@ -240,20 +239,6 @@ def euclidean_metric(a, b):
     b = b.unsqueeze(0).expand(n, m, -1)
     logits = -((a - b) ** 2).sum(dim=2)
     return logits
-
-
-def count_acc(logits, label):
-    pred = torch.argmax(logits, dim=1)
-    return (pred == label).type(torch.cuda.FloatTensor).mean()
-
-
-@ray.remote
-def get_objective_function(train, hpm):
-    def objective_function(**kwargs):
-        hpm.set_values(kwargs)
-        return train()
-
-    return objective_function
 
 
 def trial_name_string(trial):
@@ -276,59 +261,3 @@ def trial_name_string(trial):
     str += "_{}-{}".format("lr_schedule_gamma", param_dict["lr_schedule_gamma"])
     str += "_{}-{}".format("lr_schedule_step_size", param_dict["lr_schedule_step_size"])
     return str
-
-
-def jsonlines_to_pandas(name):
-    """
-    Convert GT file to Dataframe
-    """
-    jsl = list(jsonlines.open(name))
-    data_partition = jsl[:-1]
-    meta_info = jsl[-1]
-    class_names, total_images, class_id_mapping = (
-        meta_info["all_classes"],
-        meta_info["total_images"],
-        meta_info["class_id_mapping"],
-    )
-    df = pd.DataFrame(data_partition)
-    return df, class_id_mapping
-
-
-def plot_imbalance(gt_file_path, save_dir):
-    gt_df, class_id_mapping = jsonlines_to_pandas(gt_file_path)
-    str_names = gt_df["img_cls_name"]
-    id_names = gt_df["img_cls_id"]
-    joined_name = ["".join(str(a) + "_" + str(b)) for a, b in zip(str_names, id_names)]
-    gt_df["joined_name"] = joined_name
-    total_class = len(set(gt_df["joined_name"]))
-    total_imgs = gt_df.shape[0]
-    count_by_id = gt_df.groupby("joined_name").agg(["count"])["img_id"]
-    x_names = np.array(count_by_id.index.tolist())
-    y = count_by_id.to_numpy().flatten()
-    y_sort_index = np.argsort(y)
-    y = y[y_sort_index]
-    x = np.arange(len(y))
-    x_names = x_names[y_sort_index]
-    fig, ax = plt.subplots(figsize=(50, 20))
-    ax.bar(x, y)
-    ax.set_xticks(np.arange(len(x)))
-    ax.set_xticklabels(labels=x_names, rotation=90)
-    dataset_name = gt_file_path.split("/")[-1].split(".")[-2][:-3]
-    plt.title("{}_{}_{}".format(dataset_name, total_class, total_imgs))
-    save_path = os.path.join(save_dir, dataset_name)
-    plt.savefig(save_path)
-    plt.close()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--gt_file", type=str, required=True, help="path of gt file")
-    parser.add_argument(
-        "--export_dir",
-        type=str,
-        default="../categorical_statistics",
-        help="path of categorical statistics",
-    )
-    args = parser.parse_args()
-    os.makedirs(args.export_dir, exist_ok=True)
-    plot_imbalance(args.gt_file, args.export_dir)

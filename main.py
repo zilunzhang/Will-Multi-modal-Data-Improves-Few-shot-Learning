@@ -138,7 +138,7 @@ def main():
                         help='number of batch for test')
     parser.add_argument('--num_epoch', type=int, default=500,
                         help='number of epoch')
-    parser.add_argument('--batch_size', type=int, default=5,
+    parser.add_argument('--batch_size', type=int, default=30,
                         help='number of episode per batch')
     parser.add_argument('--select_func', type=str, default='grid',
                         help='function for selecting hp')

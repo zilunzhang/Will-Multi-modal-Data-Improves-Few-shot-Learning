@@ -1,0 +1,13 @@
+pytorch_lightning
+rich
+torchmeta
+ray
+yaml
+torch
+torchvision
+matplotlib
+sentence_transformers
+jsonlines
+numpy
+pillow
+opencv3
