@@ -1,17 +1,16 @@
 import pytorch_lightning as pl
-import torch
-import os
-import numpy as np
-from backbones import ResNet12, ConvNet
-from sentence_embedding_backbones import SentenceEncoder
-from models import *
-from torchmeta.datasets.helpers import *
+from encoders import SentenceEncoder
 from dataset import custom_dataset
 from torchmeta.utils.data import BatchMetaDataLoader
 from utils import *
-import pdb
 import timm
+import numpy as np
+from models import *
+from encoders import ResNet12, ConvNet
 import ray.tune as tune
+import pdb
+import os
+from torchmeta.datasets.helpers import *
 
 
 class FSLTrainer(pl.LightningModule):
@@ -23,7 +22,7 @@ class FSLTrainer(pl.LightningModule):
         self.hparams = hpparams
         self.best_val_acc = 0
         self.best_test_acc = 0
-        self.backbone = self.create_backbone(hpparams['emb_size'])
+        self.image_backbone = self.create_backbone(hpparams['emb_size'])
         self.text_backbone = SentenceEncoder()
         self.model = eval(hpparams['model'])(num_way=hpparams['num_way'], num_shot=hpparams['num_shot'],
                                              num_query=hpparams['num_query'], model_configs=None)
@@ -44,9 +43,12 @@ class FSLTrainer(pl.LightningModule):
         return backbone
 
     def prepare_data(self):
+
         self.train_dataset = \
             custom_dataset(
-                self.sampling_policy,
+                sampling_policy=self.sampling_policy,
+                id_to_sentence=self.hparams['id_to_sentence'],
+                sentence_to_id=self.hparams['sentence_to_id'],
                 ways=self.hparams['num_way'],
                 shots=self.hparams['num_shot'],
                 test_shots=self.hparams['num_query'],
@@ -58,7 +60,9 @@ class FSLTrainer(pl.LightningModule):
 
         self.val_dataset = \
             custom_dataset(
-                self.sampling_policy,
+                sampling_policy=self.sampling_policy,
+                id_to_sentence=self.hparams['id_to_sentence'],
+                sentence_to_id=self.hparams['sentence_to_id'],
                 ways=self.hparams['num_way'],
                 shots=self.hparams['num_shot'],
                 test_shots=self.hparams['num_query'],
@@ -173,22 +177,24 @@ class FSLTrainer(pl.LightningModule):
         results = {'log': test_tensorboard_logs}
         return results
 
-    def forward(self, original_support_data, original_query_data, original_support_text, original_query_text, original_support_labels, original_query_labels,
-                index):
+    def forward(self, support_image_data, query_image_data, support_test_text, query_text_data, support_labels, query_labels, index):
         # (1, 80, 3, 84, 84)
-        support_data, query_data, support_labels, query_labels = original_support_data, original_query_data, original_support_labels, original_query_labels
+        # support_data, query_data, support_labels, query_labels = original_support_data, original_query_data, original_support_labels, original_query_labels
         # input = torch.cat((support_data, query_data), 1)
         # img_vis(self.hpparams['num_way'], support_data, query_data, index)
 
         # (1, 80, 128)
-        support_feature = backbone_two_stage_initialization(original_support_data, self.backbone)
-        query_feature = backbone_two_stage_initialization(original_query_data, self.backbone)
+        support_feature = backbone_two_stage_initialization(support_image_data, self.image_backbone)
+        query_feature = backbone_two_stage_initialization(query_image_data, self.image_backbone)
 
-        support_text = backbone_sentence_embedding(original_support_text, self.text_backbone)
-        query_text = backbone_sentence_embedding(original_query_text, self.text_backbone)
+        sentence_to_id = self.hparams['sentence_to_id']
+        id_to_sentence = self.hparams['id_to_sentence']
 
-        #import ipdb
-        #ipdb.set_trace()
+
+        support_text = backbone_sentence_embedding(support_test_text, self.text_backbone, id_to_sentence)
+        query_text = backbone_sentence_embedding(query_text_data, self.text_backbone, id_to_sentence)
+
+
 
         accuracy, ce_loss = self.model([support_feature, query_feature], support_labels, query_labels)
         loss = ce_loss
@@ -201,7 +207,7 @@ class FSLTrainer(pl.LightningModule):
         else:
             # default optimizer
             self.optimizer = torch.optim.Adam(
-                params=list(self.backbone.parameters()) + list(self.model.parameters()),
+                params=list(self.image_backbone.parameters()) + list(self.text_backbone.parameters()) + list(self.model.parameters()),
                 lr=self.hparams['lr'],
                 weight_decay=self.hparams['weight_decay']
             )

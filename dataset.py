@@ -142,6 +142,8 @@ class Custom(CombinationMetaDataset):
     """
     def __init__(self,
                  sampling_policy,
+                 id_to_sentence,
+                 sentence_to_id,
                  num_classes_per_task=None,
                  meta_train=False,
                  meta_val=False,
@@ -154,6 +156,8 @@ class Custom(CombinationMetaDataset):
                  download=False
                  ):
         dataset = CustomClassDataset(sampling_policy,
+                                     id_to_sentence,
+                                     sentence_to_id,
                                      meta_train=meta_train,
                                      meta_val=meta_val,
                                      meta_test=meta_test,
@@ -175,6 +179,8 @@ class CustomClassDataset(ClassDataset):
     """
     def __init__(self,
                  sampling_policy,
+                 id_to_sentence,
+                 sentence_to_id,
                  meta_train=False,
                  meta_val=False,
                  meta_test=False,
@@ -192,6 +198,8 @@ class CustomClassDataset(ClassDataset):
 
         self.sampling_policy = sampling_policy
         self.transform = transform
+        self.id_to_sentence = id_to_sentence
+        self.sentence_to_id = sentence_to_id
 
         self.data, self._num_classes = self.split_by_policy()
 
@@ -222,6 +230,8 @@ class CustomClassDataset(ClassDataset):
         return CustomDataset(index,
                              data,
                              class_name,
+                             self.id_to_sentence,
+                             self.sentence_to_id,
                              transform=transform,
                              target_transform=target_transform
                              )
@@ -248,6 +258,8 @@ class CustomDataset(Dataset):
                  index,
                  data,
                  class_name,
+                 id_to_sentence,
+                 sentence_to_id,
                  transform=None,
                  target_transform=None
                  ):
@@ -255,7 +267,10 @@ class CustomDataset(Dataset):
                                             transform=transform,
                                             target_transform=target_transform
                                             )
+
         self.data = data
+        self.id_to_sentence = id_to_sentence
+        self.sentence_to_id = sentence_to_id
         self.class_name = class_name
 
     def __len__(self):
@@ -279,11 +294,26 @@ class CustomDataset(Dataset):
         if self.target_transform is not None:
             target = self.target_transform(target)
 
+        encoded_list = []
+        for sentence in text_data:
+            encoded_result = np.int(self.sentence_to_id[sentence])
+            encoded_list.append(encoded_result)
+        text_data = np.array(encoded_list)
+
         return image_data, text_data, target
 
 
-def helper_with_default(klass, sampling_policy, shots, ways, shuffle=True,
-                        test_shots=None, seed=None, defaults={}, **kwargs):
+def helper_with_default(klass,
+                        id_to_sentence,
+                        sentence_to_id,
+                        sampling_policy,
+                        shots,
+                        ways,
+                        shuffle=True,
+                        test_shots=None,
+                        seed=None,
+                        defaults={},
+                        **kwargs):
     if 'num_classes_per_task' in kwargs:
 
         ways = kwargs['num_classes_per_task']
@@ -297,6 +327,8 @@ def helper_with_default(klass, sampling_policy, shots, ways, shuffle=True,
     if test_shots is None:
         test_shots = shots
     dataset = klass(sampling_policy,
+                    id_to_sentence,
+                    sentence_to_id,
                     num_classes_per_task=ways,
                     **kwargs
                     )
@@ -311,6 +343,8 @@ def helper_with_default(klass, sampling_policy, shots, ways, shuffle=True,
 
 def custom_dataset(
                   sampling_policy,
+                  id_to_sentence,
+                  sentence_to_id,
                   shots,
                   ways,
                   shuffle=True,
@@ -360,6 +394,8 @@ def custom_dataset(
 
     return helper_with_default(
         Custom,
+        id_to_sentence,
+        sentence_to_id,
         sampling_policy,
         shots,
         ways,
@@ -375,8 +411,19 @@ def main():
     with open(os.path.join("pkl", "data.pkl"), "rb") as f:
         data = pkl.load(f)
         print()
+        f.close()
+    with open(os.path.join("pkl", "id_sentence_encoder.pkl"), "rb") as f:
+        id_to_sentence = pkl.load(f)
+        print()
+        f.close()
+    with open(os.path.join("pkl", "sentence_id_encoder.pkl"), "rb") as f:
+        sentence_to_id = pkl.load(f)
+        print()
+        f.close()
     dataset = custom_dataset(
-            sampling_policy=data,
+            data,
+            id_to_sentence,
+            sentence_to_id,
             ways=5,
             shots=1,
             test_shots=15,

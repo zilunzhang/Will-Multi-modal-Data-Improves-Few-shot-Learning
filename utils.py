@@ -99,7 +99,7 @@ def backbone_two_stage_initialization(full_data, encoder):
     return last_layer_data, second_last_layer_data, last_layer_feature_map
 
 
-def backbone_sentence_embedding(full_data, encoder):
+def backbone_sentence_embedding(full_data, encoder, id_to_sentence):
     """
     encode raw data by backbone network
     :param full_data: raw data
@@ -107,12 +107,29 @@ def backbone_sentence_embedding(full_data, encoder):
     :return: last layer logits from backbone network
              second last layer logits from backbone network
     """
+
+    def id2sentence(task_data):
+        print(id_to_sentence)
+        return task_data.apply_(lambda x: (id_to_sentence[np.str(x)]))
+
+
     # encode data
     last_layer_data_temp = []
 
     for data in full_data:
 
+        # data = id2sentence(data)
+        # print(data.shape)
+        # (2, 5, 10) all integer
+
+        # (2*5, 10)
+        data = torch.reshape(data, (-1, data.shape[-1]))
+
+        # (2*5, 800)
         encoded_result = encoder(data)
+
+        # (2, 5, 800)
+        encoded_result = torch.reshape(encoded_result, (data.shape[0], data.shape[1], -1))
 
         last_layer_data_temp.append(encoded_result)
 

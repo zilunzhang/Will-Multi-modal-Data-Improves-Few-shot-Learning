@@ -8,7 +8,7 @@ from rich.console import Console
 from utils import *
 from torchmeta.utils.data import BatchMetaDataLoader
 import ray
-from backbones import *
+from encoders import *
 from models import *
 from torchmeta.datasets.helpers import *
 from ray import tune
@@ -75,7 +75,7 @@ def run(config):
     checkpoint_callback = ModelCheckpoint()
     trainer = pl.Trainer(
         # early_stop_callback=early_stop_callback,
-        # fast_dev_run=True,
+        fast_dev_run=True,
         # checkpoint_callback=checkpoint_callback,
         deterministic=True,
         num_sanity_val_steps=0,
@@ -94,7 +94,9 @@ def run(config):
     trainer.fit(fsl_trainer)
 
     test_dataset = custom_dataset(
-        config["data"],
+        sampling_policy=config["data"],
+        id_to_sentence=config['id_to_sentence'],
+        sentence_to_id=config['sentence_to_id'],
         ways=config['num_way'],
         shots=config['num_shot'],
         test_shots=config['num_query'],
@@ -176,7 +178,19 @@ def main():
     config['num_query'] = task_yaml["FSL_INFO"]["Q"]
     with open(os.path.join(config["dataset_root"], "data.pkl"), "rb") as f:
         data = pkl.load(f)
+        f.close()
+    with open(os.path.join("pkl", "id_sentence_encoder.pkl"), "rb") as f:
+        id_to_sentence = pkl.load(f)
+        print()
+        f.close()
+    with open(os.path.join("pkl", "sentence_id_encoder.pkl"), "rb") as f:
+        sentence_to_id = pkl.load(f)
+        print()
+        f.close()
     config["data"] = data
+    config['id_to_sentence'] = id_to_sentence
+    config['sentence_to_id'] = sentence_to_id
+
     analysis = tune.run(
         run_or_experiment=run,
         config=config,

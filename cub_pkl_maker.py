@@ -12,6 +12,33 @@ def load_txt(file_path):
     return all_cls_ids
 
 
+def load_ids(file_path):
+    with open(file_path) as f:
+        all_cls_ids = f.readlines()
+        all_cls_ids = [cls_id.strip() for cls_id in all_cls_ids]
+    f.close()
+    return all_cls_ids
+
+
+def add_to_text_encode_dict(text, encode_dict):
+    for sentence in text:
+        encode_dict.append(sentence)
+
+
+def build_encode_dict(encode_dict, output_root):
+    ids = np.arange(len(encode_dict)).astype(np.str)
+    id_sentence_encoded_dict = dict(zip(ids, encode_dict))
+    sentence_id_encoded_dict = dict(zip(encode_dict, ids))
+
+    with open(os.path.join(output_root, "id_sentence_encoder.pkl"), "wb") as f:
+        pkl.dump(id_sentence_encoded_dict, f)
+        f.close()
+
+    with open(os.path.join(output_root, "sentence_id_encoder.pkl"), "wb") as f:
+        pkl.dump(sentence_id_encoded_dict, f)
+        f.close()
+
+
 def main():
     root_path = "cvpr2016_cub"
     imgs_path = os.path.join(root_path, "images")
@@ -19,14 +46,13 @@ def main():
     train_split_path = os.path.join(root_path, "trainids.txt")
     val_split_path = os.path.join(root_path, "valids.txt")
     test_split_path = os.path.join(root_path, "testids.txt")
-    train_split = load_txt(train_split_path)
-    val_split = load_txt(val_split_path)
+    train_split = load_ids(train_split_path)
+    val_split = load_ids(val_split_path)
     # test_split = load_split(test_split_path)
-
+    text_encode_dict = []
     output_root = "pkl"
     os.makedirs(output_root, exist_ok=True)
     train_dict = dict()
-
     val_dict = dict()
     test_dict = dict()
     # 200 classes
@@ -46,12 +72,13 @@ def main():
                     full_img_path = os.path.join(img_class_path, img)
                     full_text_path = os.path.join(texts_path, img_class, text_name)
                     assert os.path.isfile(full_img_path) and os.path.isfile(full_text_path)
-                    # image = full_img_path
-                    # text = full_text_path
+
                     pil_image = Image.open(full_img_path)
                     pil_image = pil_image.resize((84, 84))
                     image = np.array(pil_image)
                     text = load_txt(full_text_path)
+                    add_to_text_encode_dict(text, text_encode_dict)
+
                     if class_id in train_split:
                         if img_class in list(train_dict.keys()):
                             # train_dict[img_class].append([image, text])
@@ -90,7 +117,7 @@ def main():
     data["train"] = train_dict
     data["val"] = val_dict
     data["test"] = test_dict
-
+    build_encode_dict(text_encode_dict, output_root)
     pkl_path = os.path.join(output_root, "data.pkl")
     with open(pkl_path, "wb") as f:
         pkl.dump(data, f)
