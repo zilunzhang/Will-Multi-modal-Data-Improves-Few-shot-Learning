@@ -132,11 +132,11 @@ def main():
                         help='dataset root')
     parser.add_argument('--train_size', type=int, default=100,
                         help='number of batch for train')
-    parser.add_argument('--validation_size', type=int, default=100,
+    parser.add_argument('--validation_size', type=int, default=50,
                         help='number of batch for validation')
     parser.add_argument('--test_size', type=int, default=1000,
                         help='number of batch for test')
-    parser.add_argument('--num_epoch', type=int, default=100,
+    parser.add_argument('--num_epoch', type=int, default=15,
                         help='number of epoch')
     parser.add_argument('--batch_size', type=int, default=30,
                         help='number of episode per batch')
