@@ -61,3 +61,11 @@ python3 inference.py --num_cpu 16 --num_gpu 1 --task_file config.yaml --ckpt_fil
 ./result_files
 ```
 
+
+## Experiment Results
+|    Backbone    | Model| Modality | Accuracy | Checkpoint|
+| :-----------: |:----------------:|:----------------:| :----------------:| :----------------:|
+| [4-Conv](https://arxiv.org/abs/1605.05395) | [ProtoNet](https://arxiv.org/abs/1703.05175) | Image |46.29| [here]()| 
+| [4-Conv](https://arxiv.org/abs/1605.05395) | [ProtoNet](https://arxiv.org/abs/1703.05175) | Image + Text |-| [here]()| 
+
+
