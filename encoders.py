@@ -6,7 +6,7 @@ from sentence_transformers import SentenceTransformer, models
 
 
 class SentenceEncoder(nn.Module):
-    def __init__(self, emb_size):
+    def __init__(self, emb_size, sentence_len=10):
         super().__init__()
 
         # add the sentence embedding model
@@ -24,6 +24,7 @@ class SentenceEncoder(nn.Module):
         self.fc = nn.Linear(
             self.pooling_model.get_sentence_embedding_dimension(), self.out_features
         )
+        self.merge_tenshot_fc = nn.Conv1d(sentence_len, 1, 1)
 
 
     def forward(self, x, id_sentence_mapping):
@@ -38,8 +39,9 @@ class SentenceEncoder(nn.Module):
         device = torch.device('cuda' if x.is_cuda else 'cpu')
         num_instance, num_sentence_per_instance = x.shape
         # x: (5, 10)
-        self.merge_tenshot_fc = nn.Conv1d(num_sentence_per_instance, 1, 1).to(device)
         self.fc = self.fc.to(device)
+        self.merge_tenshot_fc = self.merge_tenshot_fc.to(device)
+
         # x: (50, )
         x = torch.reshape(x, (-1, ))
         x_sentence = []

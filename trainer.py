@@ -204,9 +204,10 @@ class FSLTrainer(pl.LightningModule):
         if self.config is not None:
             pass
         else:
+            param_list = list(self.image_backbone.parameters()) + list(self.text_backbone.parameters()) + list(self.model.parameters())
             # default optimizer
             self.optimizer = torch.optim.Adam(
-                params=list(self.image_backbone.parameters()) + list(self.text_backbone.parameters()) + list(self.model.parameters()),
+                params=param_list,
                 lr=self.hparams['lr'],
                 weight_decay=self.hparams['weight_decay']
             )

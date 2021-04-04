@@ -14,11 +14,10 @@ class ProtoNet(nn.Module):
         self.img_matching_loss = nn.CrossEntropyLoss()
         self.text_matching_loss = nn.CrossEntropyLoss()
 
-
+        self.t = nn.Parameter(torch.Tensor(1))
+        self.matching_loss_coeff = nn.Parameter(torch.Tensor(1))
 
     def forward(self, backbone_output, support_labels, query_labels):
-
-
 
         # support_image_feature: (bs, num_way * num_shot, emb_size)
         # query_image_feature: (bs, num_way * num_query, emb_size)
@@ -33,8 +32,11 @@ class ProtoNet(nn.Module):
         prototypes = get_prototypes(support_feature, support_labels, self.num_way)
         cls_loss = prototypical_loss(prototypes, query_feature, query_labels)
 
+        # (bs, num_way * (num_shot + num_query), emb_size)
         all_image_feature = torch.cat([support_image_feature, query_image_feature], dim=1)
+        # (bs, num_way * (num_shot + num_query), emb_size)
         all_text_feature = torch.cat([support_text_feature, query_text_feature], dim=1)
+        # (bs, num_way * (num_shot + num_query), )
         all_label = torch.cat([support_labels, query_labels], dim=1)
 
         # # (bs * num_way * (num_shot + num_query), emb_size)
@@ -49,9 +51,9 @@ class ProtoNet(nn.Module):
         # cos_sim = torch.dot(all_image_feature, all_text_feature.T)
         # cos_sim_with_temp = cos_sim * torch.exp(self.t)
 
-        # (bs * num_way * (num_shot + num_query), 1)
         device = torch.device('cuda' if support_feature.is_cuda else 'cpu')
-        self.t = nn.Parameter(torch.Tensor(1)).to(device)
+        self.t = self.t.to(device)
+        self.matching_loss_coeff = self.matching_loss_coeff.to(device)
 
         cos_sim = torch.bmm(all_image_feature, all_text_feature.permute(0, 2, 1))
         cos_sim_with_temp = cos_sim * torch.exp(self.t)
@@ -72,8 +74,6 @@ class ProtoNet(nn.Module):
         loss_img =  clip_loss(cos_sim_with_temp)
         loss_text =  clip_loss(cos_sim_with_temp)
         matching_loss = (loss_img + loss_text) / 2
-
-        self.matching_loss_coeff = nn.Parameter(torch.Tensor(1)).to(device)
 
         # loss = cls_loss + self.matching_loss_coeff * matching_loss
 
