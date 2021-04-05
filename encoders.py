@@ -9,21 +9,13 @@ class SentenceEncoder(nn.Module):
     def __init__(self, emb_size, sentence_len=10):
         super().__init__()
 
-        # add the sentence embedding model
-        self.word_embedding_model = models.Transformer(
-            "bert-base-uncased", max_seq_length=emb_size
-        )
-        self.pooling_model = models.Pooling(
-            self.word_embedding_model.get_word_embedding_dimension()
-        )
-        self.encoder = SentenceTransformer(
-            modules=[self.word_embedding_model, self.pooling_model]
-        )
+        self.encoder = SentenceTransformer('distilbert-base-uncased')
+        for param in self.encoder.parameters():
+            param.requires_grad = False
 
+        self.embedding_dimension = 768
         self.out_features = emb_size
-        self.fc = nn.Linear(
-            self.pooling_model.get_sentence_embedding_dimension(), self.out_features
-        )
+        self.fc = nn.Linear(self.embedding_dimension, self.out_features)
         self.merge_tenshot_fc = nn.Conv1d(sentence_len, 1, 1)
 
 
