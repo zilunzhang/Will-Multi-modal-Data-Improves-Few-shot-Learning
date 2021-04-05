@@ -80,7 +80,7 @@ def run(config):
         deterministic=True,
         num_sanity_val_steps=0,
         max_epochs=config['num_epoch'],
-        logger=wandb_logger,
+        # logger=wandb_logger,
         gpus=config['num_gpu'],
         progress_bar_refresh_rate=1,
         # log_save_interval=1,
@@ -136,7 +136,7 @@ def main():
                         help='number of batch for validation')
     parser.add_argument('--test_size', type=int, default=1000,
                         help='number of batch for test')
-    parser.add_argument('--num_epoch', type=int, default=15,
+    parser.add_argument('--num_epoch', type=int, default=2,
                         help='number of epoch')
     parser.add_argument('--batch_size', type=int, default=30,
                         help='number of episode per batch')

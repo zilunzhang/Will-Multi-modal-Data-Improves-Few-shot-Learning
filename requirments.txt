@@ -2,7 +2,7 @@ pytorch_lightning
 rich
 torchmeta
 ray
-yaml
+PyYAML
 torch
 torchvision
 matplotlib
@@ -10,4 +10,4 @@ sentence_transformers
 jsonlines
 numpy
 pillow
-opencv3
+opencv-python
