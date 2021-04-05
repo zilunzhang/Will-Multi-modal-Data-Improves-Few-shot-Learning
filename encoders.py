@@ -18,7 +18,6 @@ class SentenceEncoder(nn.Module):
         self.fc = nn.Linear(self.embedding_dimension, self.out_features)
         self.merge_tenshot_fc = nn.Conv1d(sentence_len, 1, 1)
 
-
     def forward(self, x, id_sentence_mapping):
         # # flatten list of tuple to just list
         # x_input = [item for t in x for item in t]
@@ -53,6 +52,7 @@ class SentenceEncoder(nn.Module):
         out = self.merge_tenshot_fc(x).squeeze(1)
         return out
 
+
 def conv_block(in_channels, out_channels):
     bn = nn.BatchNorm2d(out_channels)
     nn.init.uniform_(bn.weight) # for pytorch 1.2 or later
@@ -74,13 +74,13 @@ class ConvNet(nn.Module):
             conv_block(hid_dim, hid_dim),
             conv_block(hid_dim, z_dim),
         )
-        self.out_channels = emb_size
+        self.out_channels = hid_dim * 25
         self.fc = nn.Linear(self.out_channels, emb_size)
 
     def forward(self, x):
         x = self.encoder(x)
 
-        flatten_x =  x.view(x.size(0), -1)
+        flatten_x = x.view(x.size(0), -1)
         out = self.fc(flatten_x)
         # out = flatten_x
         return out

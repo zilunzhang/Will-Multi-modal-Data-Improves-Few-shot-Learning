@@ -130,7 +130,7 @@ def main():
                         help='number of budgets')
     parser.add_argument('--num_gpu', type=int, default=1,
                         help='number of gpu per trail')
-    parser.add_argument('--num_cpu', type=int, default=32,
+    parser.add_argument('--num_cpu', type=int, default=0,
                         help='number of cpu per trail')
     parser.add_argument('--exp_dir', type=str,
                         # required=True,
@@ -147,7 +147,7 @@ def main():
                         help='number of batch for test')
     parser.add_argument('--num_epoch', type=int, default=100,
                         help='number of epoch')
-    parser.add_argument('--batch_size', type=int, default=20,
+    parser.add_argument('--batch_size', type=int, default=5,
                         help='number of episode per batch')
     parser.add_argument('--select_func', type=str, default='grid',
                         help='function for selecting hp')

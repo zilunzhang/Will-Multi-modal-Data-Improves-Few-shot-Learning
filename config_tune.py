@@ -14,15 +14,15 @@ def set_up_config(select_func=tune.grid_search):
                 ]),
             "backbone":
                 select_func([
-                    'ConvNet',
-#                     'ResNet12',
+                    # 'ConvNet',
+                    'ResNet12',
                     # 'resnet18',
                 ]),
 
             "model":
                 select_func([
-                    'ProtoNet',
-                    # 'MAML',
+                    # 'ProtoNet',
+                    'MAML',
                 ]),
             "emb_size":
                 select_func([
