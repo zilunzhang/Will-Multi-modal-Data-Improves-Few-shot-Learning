@@ -98,7 +98,8 @@ class FSLTrainer(pl.LightningModule):
                 }
 
     def validation_step(self, batch, batch_idx):
-        # torch.set_grad_enabled(True)
+        if self.hpparams['model'] == "MAML":
+            torch.set_grad_enabled(True)
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
 
@@ -135,8 +136,8 @@ class FSLTrainer(pl.LightningModule):
         return results
 
     def test_step(self, batch, batch_idx):
-        # torch.set_grad_enabled(True)
-
+        if self.hpparams['model'] == "MAML":
+            torch.set_grad_enabled(True)
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
 
