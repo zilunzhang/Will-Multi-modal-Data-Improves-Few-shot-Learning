@@ -103,7 +103,7 @@ class FSLTrainer(pl.LightningModule):
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
 
-        valid_loss, valid_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx)
+        valid_loss, valid_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx, False)
 
         valid_tensorboard_logs = {'valid_loss': valid_loss, 'valid_accuracy': valid_accuracy}
         self.trainer.logger.log_metrics(valid_tensorboard_logs, step=self.trainer.global_step)
@@ -145,7 +145,7 @@ class FSLTrainer(pl.LightningModule):
             support_data, query_data, support_labels, query_labels = support_data.to("cuda"), query_data.to(
                 "cuda"), support_labels.to("cuda"), query_labels.to("cuda")
 
-        test_loss, test_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx)
+        test_loss, test_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx, False)
 
         test_tensorboard_logs = {'test_loss': test_loss, 'test_accuracy': test_accuracy}
         self.trainer.logger.log_metrics(test_tensorboard_logs, step=self.trainer.global_step)
@@ -178,21 +178,21 @@ class FSLTrainer(pl.LightningModule):
         results = {'log': test_tensorboard_logs}
         return results
 
-    def forward(self, support_image_data, query_image_data, support_test_text, query_text_data, support_labels, query_labels, index):
+    def forward(self, support_image_data, query_image_data, support_test_text, query_text_data, support_labels, query_labels, index, is_train=True):
         # support_data, query_data, support_labels, query_labels = original_support_data, original_query_data, original_support_labels, original_query_labels
         # (1, 80, 3, 84, 84)
         # input = torch.cat((support_data, query_data), 1)
         # img_vis(self.hpparams['num_way'], support_data, query_data, index)
 
         if self.hparams["model"] == "MAML":
-            accuracy, ce_loss = self.model([support_image_data, query_image_data, None, None], support_labels, query_labels)
+            accuracy, ce_loss = self.model([support_image_data, query_image_data, None, None], support_labels, query_labels, is_train)
         else:
             # (bs, num_way * num_shot, emb_size)
             support_image_feature = backbone_two_stage_initialization(support_image_data, self.image_backbone)
             # (bs, num_way * num_query, emb_size)
             query_image_feature = backbone_two_stage_initialization(query_image_data, self.image_backbone)
 
-            accuracy, ce_loss = self.model([support_image_feature, query_image_feature, None, None], support_labels, query_labels)
+            accuracy, ce_loss = self.model([support_image_feature, query_image_feature, None, None], support_labels, query_labels, is_train)
         loss = ce_loss
         return loss, accuracy
 
@@ -201,7 +201,10 @@ class FSLTrainer(pl.LightningModule):
         if self.config is not None:
             pass
         else:
-            param_list = list(self.image_backbone.parameters()) + list(self.model.parameters())
+            if self.hparams["model"] == "MAML":
+                param_list = list(self.model.parameters())
+            else:
+                param_list = list(self.image_backbone.parameters()) + list(self.model.parameters())
             # default optimizer
             self.optimizer = torch.optim.Adam(
                 params=param_list,
