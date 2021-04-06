@@ -89,7 +89,7 @@ class MAML(nn.Module):
 
         return ConvolutionalNeuralNetwork(3, 800, hidden_size=32)
 
-    def forward(self, backbone_output, support_labels, query_labels):
+    def forward(self, backbone_output, support_labels, query_labels, is_train):
 
         # support_image_feature: (bs, num_way * num_shot, emb_size)
         # query_image_feature: (bs, num_way * num_query, emb_size)
@@ -120,5 +120,7 @@ class MAML(nn.Module):
 
         outer_loss.div_(bs)
         accuracy.div_(bs)
-
-        return accuracy, outer_loss
+        if is_train:
+            return accuracy, outer_loss
+        else:
+            return accuracy, outer_loss.detach().cpu()
