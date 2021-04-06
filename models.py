@@ -3,7 +3,49 @@ import torch
 from torchmeta.utils.prototype import get_prototypes, prototypical_loss
 from utils import get_accuracy
 import torch.nn.functional as F
+import math
 
+
+class Attention(torch.nn.Module):
+
+    def __init__(self, q_dim, k_dim, v_dim, h_dim):
+        super().__init__()
+        self.softmax = nn.Softmax(dim=1)
+        self.q = nn.Linear(q_dim, h_dim)
+        self.k = nn.Linear(k_dim, h_dim)
+        self.v = nn.Linear(v_dim, h_dim)
+
+    def similarity(self, attention_type, query, key):
+        """
+        Similarity Function of Attention
+        :param attention_type: additive, scale dot, mlp
+        :param query: (bs, 80, 128), text
+        :param key: (bs, 80, 128), image
+        :return: (bs, 80, 80)
+        """
+
+        scores = torch.bmm(query, key.permute(0, 2, 1)) / math.sqrt(key.shape[-1])
+
+        return scores
+
+    def forward(self, query, key, value):
+        """
+        https://arxiv.org/pdf/1706.03762.pdf
+        :param query: (bs, 80, 128), text
+        :param key: (bs, 80, 128), image
+        :param value: (bs, 80, 128), image
+        :return: (bs, 80, 128)
+        """        
+        
+        query = self.q(query)
+        key = self.k(key)
+        value = self.v(value)
+        scores = self.similarity("scaled_dot_product", query, key)
+        att_map = self.softmax(scores, dim=-1)
+        context = torch.bmm(att_map, value)
+
+        return context
+    
 
 class ProtoNet(nn.Module):
     def __init__(self, num_way, num_shot, num_query, emb_size):
@@ -18,6 +60,7 @@ class ProtoNet(nn.Module):
         self.t = nn.Parameter(torch.Tensor(1))
         self.matching_loss_coeff = nn.Parameter(torch.Tensor(1))
         self.fusion_fc = nn.Linear(2 * emb_size, emb_size)
+        self.attention = attention(emb_size, emb_size, emb_size, emb_size)
 
     def emb_fusion(self, support_image_feature, support_text_feature, query_image_feature, query_text_feature, mode="mean"):
         if mode == "mean":
@@ -33,7 +76,8 @@ class ProtoNet(nn.Module):
             # bs * 75 * 800
             query_feature = self.fusion_fc(query_feature)
         elif mode == "attention":
-            pass
+            support_feature = self.attention(support_text_feature, support_image_feature, support_image_feature)
+            query_feature = self.attention(query_text_feature, query_image_feature, query_image_feature)
         else:
             "please specify a fusion method"
         return support_feature, query_feature
@@ -60,7 +104,7 @@ class ProtoNet(nn.Module):
             support_text_feature,
             query_image_feature,
             query_text_feature,
-            mode="fc"
+            mode="mean"
         )
         # prototypes: (bs, num_way, emb_size)
         prototypes = get_prototypes(support_feature, support_labels, self.num_way)
