@@ -105,7 +105,7 @@ class ProtoNet(nn.Module):
             support_text_feature,
             query_image_feature,
             query_text_feature,
-            mode="mean"
+            mode="attention"
         )
         # prototypes: (bs, num_way, emb_size)
         prototypes = get_prototypes(support_feature, support_labels, self.num_way)
