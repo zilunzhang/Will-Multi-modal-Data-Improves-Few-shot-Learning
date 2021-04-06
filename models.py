@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 
 class ProtoNet(nn.Module):
-    def __init__(self, num_way, num_shot, num_query, model_configs):
+    def __init__(self, num_way, num_shot, num_query, emb_size):
         super(ProtoNet, self).__init__()
         self.num_way = num_way
         self.num_shot = num_shot
@@ -17,13 +17,21 @@ class ProtoNet(nn.Module):
 
         self.t = nn.Parameter(torch.Tensor(1))
         self.matching_loss_coeff = nn.Parameter(torch.Tensor(1))
+        self.fusion_fc = nn.Linear(2 * emb_size, emb_size)
 
     def emb_fusion(self, support_image_feature, support_text_feature, query_image_feature, query_text_feature, mode="mean"):
         if mode == "mean":
             support_feature = (support_image_feature + support_text_feature) / 2
             query_feature = (query_image_feature + query_text_feature) / 2
         elif mode == "fc":
-            pass
+            # (bs, 5, 1600)
+            support_feature = torch.cat((support_image_feature, support_text_feature), 2)
+            # (bs, 5, 800)
+            support_feature = self.fc(support_feature)
+            # (bs, 75, 1600）
+            query_feature = torch.cat((query_image_feature, query_text_feature), 2)
+            # bs * 75 * 800
+            query_feature = self.fc(query_feature)
         elif mode == "attention":
             pass
         else:
@@ -41,6 +49,11 @@ class ProtoNet(nn.Module):
         query_image_feature = F.normalize(query_image_feature, dim=-1)
         query_text_feature = F.normalize(query_text_feature, dim=-1)
         support_image_feature = F.normalize(support_image_feature, dim=-1)
+
+        device = torch.device('cuda' if support_image_feature.is_cuda else 'cpu')
+        self.t = self.t.to(device)
+        self.matching_loss_coeff = self.matching_loss_coeff.to(device)
+        self.fusion_fc = self.fusion_fc.to(device)
 
         support_feature, query_feature = self.emb_fusion(
             support_image_feature,
@@ -60,9 +73,7 @@ class ProtoNet(nn.Module):
         # (bs, num_way * (num_shot + num_query), )
         all_label = torch.cat([support_labels, query_labels], dim=1)
 
-        device = torch.device('cuda' if support_feature.is_cuda else 'cpu')
-        self.t = self.t.to(device)
-        self.matching_loss_coeff = self.matching_loss_coeff.to(device)
+
 
         cos_sim = torch.bmm(all_image_feature, all_text_feature.permute(0, 2, 1))
         cos_sim_with_temp = cos_sim * torch.exp(self.t)

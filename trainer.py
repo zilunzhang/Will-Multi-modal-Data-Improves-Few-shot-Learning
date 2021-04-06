@@ -25,7 +25,7 @@ class FSLTrainer(pl.LightningModule):
         self.image_backbone = self.create_backbone(hpparams['emb_size'])
         self.text_backbone = SentenceEncoder(hpparams['emb_size'])
         self.model = eval(hpparams['model'])(num_way=hpparams['num_way'], num_shot=hpparams['num_shot'],
-                                             num_query=hpparams['num_query'], model_configs=None)
+                                             num_query=hpparams['num_query'], emb_size=hpparams['emb_size'])
         self.config = None
         self.sampling_policy = hpparams["data"]
 
