@@ -80,6 +80,7 @@ class ProtoNet(nn.Module):
             query_feature = self.attention(query_text_feature, query_image_feature, query_image_feature)
         else:
             "please specify a fusion method"
+            exit()
         return support_feature, query_feature
 
     def forward(self, backbone_output, support_labels, query_labels):
