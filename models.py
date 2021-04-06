@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 from torchmeta.utils.prototype import get_prototypes, prototypical_loss
 from utils import get_accuracy
+import torch.nn.functional as F
 
 
 class ProtoNet(nn.Module):
@@ -36,10 +37,10 @@ class ProtoNet(nn.Module):
         # support_text_feature: (bs, num_way * num_shot, emb_size)
         # query_text_feature: (bs, num_way * num_query, emb_size)
         support_image_feature, query_image_feature, support_text_feature, query_text_feature = backbone_output
-        support_image_feature /= support_image_feature.norm(2, dim=2, keepdim=True)
-        support_text_feature /= support_text_feature.norm(2, dim=2, keepdim=True)
-        query_image_feature /= query_image_feature.norm(2, dim=2, keepdim=True)
-        query_text_feature /= query_text_feature.norm(2, dim=2, keepdim=True)
+        support_text_feature = F.normalize(support_text_feature, dim=-1)
+        query_image_feature = F.normalize(query_image_feature, dim=-1)
+        query_text_feature = F.normalize(query_text_feature, dim=-1)
+        support_image_feature = F.normalize(support_image_feature, dim=-1)
 
         support_feature, query_feature = self.emb_fusion(
             support_image_feature,
