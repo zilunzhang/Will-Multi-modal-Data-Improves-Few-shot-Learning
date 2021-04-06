@@ -74,7 +74,7 @@ class ConvNet(nn.Module):
             conv_block(hid_dim, hid_dim),
             conv_block(hid_dim, z_dim),
         )
-        self.out_channels = emb_size
+        self.out_channels = 800
         self.fc = nn.Linear(self.out_channels, emb_size)
 
     def forward(self, x):
