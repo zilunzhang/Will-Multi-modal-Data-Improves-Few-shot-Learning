@@ -17,6 +17,18 @@ class ProtoNet(nn.Module):
         self.t = nn.Parameter(torch.Tensor(1))
         self.matching_loss_coeff = nn.Parameter(torch.Tensor(1))
 
+    def emb_fusion(self, support_image_feature, support_text_feature, query_image_feature, query_text_feature, mode="mean"):
+        if mode == "mean":
+            support_feature = (support_image_feature + support_text_feature) / 2
+            query_feature = (query_image_feature + query_text_feature) / 2
+        elif mode == "fc":
+            pass
+        elif mode == "attention":
+            pass
+        else:
+            "please specify a fusion method"
+        return support_feature, query_feature
+
     def forward(self, backbone_output, support_labels, query_labels):
 
         # support_image_feature: (bs, num_way * num_shot, emb_size)
@@ -24,10 +36,18 @@ class ProtoNet(nn.Module):
         # support_text_feature: (bs, num_way * num_shot, emb_size)
         # query_text_feature: (bs, num_way * num_query, emb_size)
         support_image_feature, query_image_feature, support_text_feature, query_text_feature = backbone_output
+        support_image_feature /= support_image_feature.norm(2, dim=2, keepdim=True)
+        support_text_feature /= support_text_feature.norm(2, dim=2, keepdim=True)
+        query_image_feature /= query_image_feature.norm(2, dim=2, keepdim=True)
+        query_text_feature /= query_text_feature.norm(2, dim=2, keepdim=True)
 
-        support_feature = (support_image_feature.norm(2, dim=2, keepdim=True) + support_text_feature.norm(2, dim=2, keepdim=True)) / 2
-        query_feature = (query_image_feature.norm(2, dim=2, keepdim=True) + query_text_feature.norm(2, dim=2, keepdim=True)) / 2
-
+        support_feature, query_feature = self.emb_fusion(
+            support_image_feature,
+            support_text_feature,
+            query_image_feature,
+            query_text_feature,
+            mode="mean"
+        )
         # prototypes: (bs, num_way, emb_size)
         prototypes = get_prototypes(support_feature, support_labels, self.num_way)
         cls_loss = prototypical_loss(prototypes, query_feature, query_labels)
@@ -38,18 +58,6 @@ class ProtoNet(nn.Module):
         all_text_feature = torch.cat([support_text_feature, query_text_feature], dim=1)
         # (bs, num_way * (num_shot + num_query), )
         all_label = torch.cat([support_labels, query_labels], dim=1)
-
-        # # (bs * num_way * (num_shot + num_query), emb_size)
-        # all_image_feature = torch.reshape(all_image_feature, (all_image_feature.shape[0] * all_image_feature.shape[1], -1))
-        # # (bs * num_way * (num_shot + num_query), emb_size)
-        # all_text_feature = torch.reshape(all_text_feature, (all_text_feature.shape[0] * all_text_feature.shape[1], -1))
-        # # (bs * num_way * (num_shot + num_query), )
-        # all_label = torch.reshape(all_label, (all_label.shape[0] * all_label.shape[1], ))
-
-        # self.t = nn.Parameter(torch.Tensor(len(all_label), 1))
-        # # (bs * num_way * (num_shot + num_query), bs * num_way * (num_shot + num_query))
-        # cos_sim = torch.dot(all_image_feature, all_text_feature.T)
-        # cos_sim_with_temp = cos_sim * torch.exp(self.t)
 
         device = torch.device('cuda' if support_feature.is_cuda else 'cpu')
         self.t = self.t.to(device)
