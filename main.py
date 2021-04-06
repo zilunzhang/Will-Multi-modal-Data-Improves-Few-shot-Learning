@@ -23,7 +23,8 @@ import pickle as pkl
 def run(config):
     if config['num_gpu'] > 0:
         os.environ["CUDA_VISIBLE_DEVICES"] = '0'
-
+    os.environ["TOKENIZERS_PARALLELISM"] = "true"
+    os.environ["SLURM_JOB_NAME"] = "bash"
     exp_name = '{}' \
                '_dataset-{}' \
                '_backbone-{}' \
@@ -72,15 +73,22 @@ def run(config):
                                offline=True
                                )
 
-    checkpoint_callback = ModelCheckpoint()
+    # checkpoint_callback = ModelCheckpoint(
+    #     dirpath=os.path.join(config['exp_dir'], "checkpoints"),
+    #     filename=os.path.join(exp_name, '-{epoch:02d}-{val_acc:.2f}'),
+    #     monitor='val_acc',
+    #     save_top_k=1,
+    #     mode='max',
+    # )
+
     trainer = pl.Trainer(
         # early_stop_callback=early_stop_callback,
-        # checkpoint_callback=checkpoint_callback,
+        # callbacks=[checkpoint_callback],
         # fast_dev_run=True,
         deterministic=True,
         num_sanity_val_steps=0,
         max_epochs=config['num_epoch'],
-        # logger=wandb_logger,
+        logger=wandb_logger,
         gpus=config['num_gpu'],
         progress_bar_refresh_rate=1,
         # log_save_interval=1,
@@ -108,8 +116,10 @@ def run(config):
     test_dataloader = BatchMetaDataLoader(test_dataset, shuffle=False, batch_size=config['batch_size'], num_workers=config['num_cpu'], pin_memory=True)
 
     test_result = trainer.test(test_dataloaders=test_dataloader)
-    tune.report(test_result=test_result["test_accuracy_mean"])
-
+    if type(test_result) == list:
+        tune.report(test_result=test_result[0]["test_accuracy_mean"])
+    elif type(test_result) == dict:
+        tune.report(test_result=test_result["test_accuracy_mean"])
     print('trail: {}, test accuracy: {}'.format(exp_name, test_result))
 
 
@@ -136,9 +146,9 @@ def main():
                         help='number of batch for validation')
     parser.add_argument('--test_size', type=int, default=1000,
                         help='number of batch for test')
-    parser.add_argument('--num_epoch', type=int, default=2,
+    parser.add_argument('--num_epoch', type=int, default=100,
                         help='number of epoch')
-    parser.add_argument('--batch_size', type=int, default=30,
+    parser.add_argument('--batch_size', type=int, default=20,
                         help='number of episode per batch')
     parser.add_argument('--select_func', type=str, default='grid',
                         help='function for selecting hp')

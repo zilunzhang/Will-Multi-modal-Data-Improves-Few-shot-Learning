@@ -16,6 +16,9 @@ class ProtoNet(nn.Module):
 
         self.t = nn.Parameter(torch.Tensor(1))
         self.matching_loss_coeff = nn.Parameter(torch.Tensor(1))
+        
+        # 1600 -> 800, hard code for now
+        self.fc = nn.Linear(1600, 800)
 
     def forward(self, backbone_output, support_labels, query_labels):
 
@@ -24,9 +27,24 @@ class ProtoNet(nn.Module):
         # support_text_feature: (bs, num_way * num_shot, emb_size)
         # query_text_feature: (bs, num_way * num_query, emb_size)
         support_image_feature, query_image_feature, support_text_feature, query_text_feature = backbone_output
+        
+        # L2 normalize
+        support_image_feature /= support_image_feature.norm(2, dim=2, keepdim=True)
+        support_text_feature /= support_text_feature.norm(2, dim=2, keepdim=True)
+        query_image_feature /= query_image_feature.norm(2, dim=2, keepdim=True)
+        query_text_feature /= query_text_feature.norm(2, dim=2, keepdim=True)
 
-        support_feature = (support_image_feature.norm(2, dim=2, keepdim=True) + support_text_feature.norm(2, dim=2, keepdim=True)) / 2
-        query_feature = (query_image_feature.norm(2, dim=2, keepdim=True) + query_text_feature.norm(2, dim=2, keepdim=True)) / 2
+        # bs * 5 * 1600
+        support_feature = torch.cat((support_image_feature, support_text_feature), 2)
+        # bs * 5 * 800
+        support_feature = self.fc(support_feature)
+        # bs * 75 * 1600
+        query_feature = torch.cat((query_image_feature, query_text_feature), 2)
+        # bs * 75 * 800
+        query_feature = self.fc(query_feature)
+
+        #support_feature = (support_image_feature + support_text_feature) / 2
+        #query_feature = (query_image_feature + query_text_feature) / 2
 
         # prototypes: (bs, num_way, emb_size)
         prototypes = get_prototypes(support_feature, support_labels, self.num_way)
