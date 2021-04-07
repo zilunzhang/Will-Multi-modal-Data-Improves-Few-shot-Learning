@@ -132,9 +132,9 @@ def main():
                         help='path of task file')
     parser.add_argument('--budgets', type=int, default=1,
                         help='number of budgets')
-    parser.add_argument('--num_gpu', type=int, default=0,
+    parser.add_argument('--num_gpu', type=int, default=1,
                         help='number of gpu per trail')
-    parser.add_argument('--num_cpu', type=int, default=0,
+    parser.add_argument('--num_cpu', type=int, default=16,
                         help='number of cpu per trail')
     parser.add_argument('--exp_dir', type=str,
                         # required=True,
@@ -143,15 +143,15 @@ def main():
     parser.add_argument('--dataset_root', type=str,
                         default='pkl',
                         help='dataset root')
-    parser.add_argument('--train_size', type=int, default=10,
+    parser.add_argument('--train_size', type=int, default=100,
                         help='number of batch for train')
-    parser.add_argument('--validation_size', type=int, default=10,
+    parser.add_argument('--validation_size', type=int, default=100,
                         help='number of batch for validation')
-    parser.add_argument('--test_size', type=int, default=10,
+    parser.add_argument('--test_size', type=int, default=500,
                         help='number of batch for test')
-    parser.add_argument('--num_epoch', type=int, default=5,
+    parser.add_argument('--num_epoch', type=int, default=100,
                         help='number of epoch')
-    parser.add_argument('--batch_size', type=int, default=2,
+    parser.add_argument('--batch_size', type=int, default=10,
                         help='number of episode per batch')
     parser.add_argument('--select_func', type=str, default='grid',
                         help='function for selecting hp')
