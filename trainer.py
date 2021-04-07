@@ -129,11 +129,12 @@ class FSLTrainer(pl.LightningModule):
                 }
 
     def validation_step(self, batch, batch_idx):
-        # torch.set_grad_enabled(True)
+        if self.hparams['model'] == "MAML":
+            torch.set_grad_enabled(True)
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
 
-        valid_loss, valid_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx)
+        valid_loss, valid_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx, False)
 
         valid_tensorboard_logs = {'valid_loss': valid_loss, 'valid_accuracy': valid_accuracy}
         self.trainer.logger.log_metrics(valid_tensorboard_logs, step=self.trainer.global_step)
@@ -167,7 +168,8 @@ class FSLTrainer(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         # torch.set_grad_enabled(True)
-
+        if self.hparams['model'] == "MAML":
+            torch.set_grad_enabled(True)
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
 
@@ -175,7 +177,7 @@ class FSLTrainer(pl.LightningModule):
             support_data, query_data, support_labels, query_labels = support_data.to("cuda"), query_data.to(
                 "cuda"), support_labels.to("cuda"), query_labels.to("cuda")
 
-        test_loss, test_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx)
+        test_loss, test_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx, False)
 
         test_tensorboard_logs = {'test_loss': test_loss, 'test_accuracy': test_accuracy}
         self.trainer.logger.log_metrics(test_tensorboard_logs, step=self.trainer.global_step)
@@ -208,7 +210,7 @@ class FSLTrainer(pl.LightningModule):
         results = {'log': test_tensorboard_logs}
         return results
 
-    def forward(self, support_image_data, query_image_data, support_test_text, query_text_data, support_labels, query_labels, index):
+    def forward(self, support_image_data, query_image_data, support_test_text, query_text_data, support_labels, query_labels, index, is_train=True):
 
         # (1, 80, 3, 84, 84)
         # support_data, query_data, support_labels, query_labels = original_support_data, original_query_data, original_support_labels, original_query_labels
@@ -225,7 +227,10 @@ class FSLTrainer(pl.LightningModule):
         # (bs, num_way * num_query, emb_size)
         query_text_feature = backbone_sentence_embedding(query_text_data, self.text_backbone, self.id_to_sentence)
 
-        accuracy, ce_loss = self.model([support_image_feature, query_image_feature, support_text_feature, query_text_feature], support_labels, query_labels, self.hparams["fusion_method"])
+        if self.hparams["model"] == "MAML":
+            accuracy, ce_loss = self.model([support_image_data, query_image_data, support_text_feature, query_text_feature], support_labels, query_labels, self.hparams["fusion_method"], is_train)
+        else:
+            accuracy, ce_loss = self.model([support_image_feature, query_image_feature, support_text_feature, query_text_feature], support_labels, query_labels, self.hparams["fusion_method"])
         loss = ce_loss
         return loss, accuracy
 

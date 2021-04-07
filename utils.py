@@ -24,38 +24,36 @@ matplotlib.use("Agg")
 
 
 def imagenet_transform(stage):
-    # mean_pix = [x / 255.0 for x in [120.39586422, 115.59361427, 104.54012653]]
-    # std_pix = [x / 255.0 for x in [70.68188272, 68.27635443, 72.54505529]]
-    # normalize = Normalize(mean=mean_pix, std=std_pix)
-    # # set transformer
-    # if stage == 'train':
-    #     transform = Compose([
-    #         RandomCrop(84, padding=4),
-    #         RandomHorizontalFlip(),
-    #         ColorJitter(brightness=.1,
-    #                     contrast=.1,
-    #                     saturation=.1,
-    #                     hue=.1),
-    #         lambda x: np.asarray(x),
-    #         ToTensor(),
-    #         normalize
-    #     ]
-    #     )
-    # else:  # 'val' or 'test' ,
-    #     transform = Compose([
-    #         lambda x: np.asarray(x),
-    #         ToTensor(),
-    #         normalize
-    #     ]
-    #     )
-    transform = Compose(
-        [
-            Resize(84),
-            CenterCrop(84),
+    mean_pix = [x / 255.0 for x in [120.39586422, 115.59361427, 104.54012653]]
+    std_pix = [x / 255.0 for x in [70.68188272, 68.27635443, 72.54505529]]
+    normalize = Normalize(mean=mean_pix, std=std_pix)
+    # set transformer
+    if stage == 'train':
+        transform = Compose([
+            RandomCrop(84, padding=4),
+            RandomHorizontalFlip(),
+            ColorJitter(brightness=.1,
+                        contrast=.1,
+                        saturation=.1,
+                        hue=.1),
             ToTensor(),
-            Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            normalize
         ]
-    )
+        )
+    else:  # 'val' or 'test' ,
+        transform = Compose([
+            ToTensor(),
+            normalize
+        ]
+        )
+    # transform = Compose(
+    #     [
+    #         Resize(84),
+    #         CenterCrop(84),
+    #         ToTensor(),
+    #         Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    #     ]
+    # )
     return transform
 
 
@@ -262,3 +260,22 @@ def trial_name_string(trial):
     str += "_{}-{}".format("lr_schedule_gamma", param_dict["lr_schedule_gamma"])
     str += "_{}-{}".format("lr_schedule_step_size", param_dict["lr_schedule_step_size"])
     return str
+
+
+def get_accuracy_maml(logits, targets):
+    """Compute the accuracy (after adaptation) of MAML on the test/query points
+    Parameters
+    ----------
+    logits : `torch.FloatTensor` instance
+        Outputs/logits of the model on the query points. This tensor has shape
+        `(num_examples, num_classes)`.
+    targets : `torch.LongTensor` instance
+        A tensor containing the targets of the query points. This tensor has
+        shape `(num_examples,)`.
+    Returns
+    -------
+    accuracy : `torch.FloatTensor` instance
+        Mean accuracy on the query points
+    """
+    _, predictions = torch.max(logits, dim=-1)
+    return torch.mean(predictions.eq(targets).float())
