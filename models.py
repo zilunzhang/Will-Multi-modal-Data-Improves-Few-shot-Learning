@@ -101,7 +101,6 @@ class ProtoNet(nn.Module):
         self.t = self.t.to(device)
         self.matching_loss_coeff = self.matching_loss_coeff.to(device)
         self.fusion_fc = self.fusion_fc.to(device)
-        print(fusion_method)
         support_feature, query_feature = self.emb_fusion(
             support_image_feature,
             support_text_feature,
