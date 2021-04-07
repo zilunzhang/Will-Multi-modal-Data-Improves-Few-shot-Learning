@@ -3,8 +3,6 @@ rich
 torchmeta
 ray
 PyYAML
-torch
-torchvision
 matplotlib
 jsonlines
 numpy

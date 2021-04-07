@@ -251,6 +251,7 @@ def trial_name_string(trial):
     """
     print()
     param_dict = trial.evaluated_params
+    # param_dict = trial
     str = ""
     # str += '{}-{}'.format('uuid', uuid)
     str += "{}-{}".format("backbone", param_dict["backbone"])

@@ -15,7 +15,7 @@ def set_up_config(select_func=tune.grid_search):
             "backbone":
                 select_func([
                     'ConvNet',
-#                     'ResNet12',
+                    # 'ResNet12',
                     # 'resnet18',
                 ]),
 
@@ -27,8 +27,8 @@ def set_up_config(select_func=tune.grid_search):
             "emb_size":
                 select_func([
                     # 1600,
-                    # 128,
-                    800,
+                    128,
+                    # 800,
                 ]),
 
             "query_type":

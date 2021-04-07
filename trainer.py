@@ -11,6 +11,7 @@ import ray.tune as tune
 import pdb
 import os
 from torchmeta.datasets.helpers import *
+import pickle as pkl
 
 
 class FSLTrainer(pl.LightningModule):
@@ -26,8 +27,10 @@ class FSLTrainer(pl.LightningModule):
         self.text_backbone = SentenceEncoder(hpparams['emb_size'])
         self.model = eval(hpparams['model'])(num_way=hpparams['num_way'], num_shot=hpparams['num_shot'],
                                              num_query=hpparams['num_query'], emb_size=hpparams['emb_size'])
-        self.config = None
-        self.sampling_policy = hpparams["data"]
+
+    def set_config(self, config):
+        self.hparams = config
+        print("num_worker: {}".format(self.hparams['num_cpu']))
 
     def create_backbone(self, emb_size):
         if self.hparams['backbone'].startswith('timm'):
@@ -44,11 +47,21 @@ class FSLTrainer(pl.LightningModule):
 
     def prepare_data(self):
 
+        with open(os.path.join(self.hparams["dataset_root"], "data.pkl"), "rb") as f:
+            self.sampling_policy = pkl.load(f)
+            f.close()
+        with open(os.path.join("pkl", "id_sentence_encoder.pkl"), "rb") as f:
+            self.id_to_sentence = pkl.load(f)
+            f.close()
+        with open(os.path.join("pkl", "sentence_id_encoder.pkl"), "rb") as f:
+            self.sentence_to_id = pkl.load(f)
+            f.close()
+
         self.train_dataset = \
             custom_dataset(
                 sampling_policy=self.sampling_policy,
-                id_to_sentence=self.hparams['id_to_sentence'],
-                sentence_to_id=self.hparams['sentence_to_id'],
+                id_to_sentence=self.id_to_sentence,
+                sentence_to_id=self.sentence_to_id,
                 ways=self.hparams['num_way'],
                 shots=self.hparams['num_shot'],
                 test_shots=self.hparams['num_query'],
@@ -61,8 +74,8 @@ class FSLTrainer(pl.LightningModule):
         self.val_dataset = \
             custom_dataset(
                 sampling_policy=self.sampling_policy,
-                id_to_sentence=self.hparams['id_to_sentence'],
-                sentence_to_id=self.hparams['sentence_to_id'],
+                id_to_sentence=self.id_to_sentence,
+                sentence_to_id=self.sentence_to_id,
                 ways=self.hparams['num_way'],
                 shots=self.hparams['num_shot'],
                 test_shots=self.hparams['num_query'],
@@ -71,6 +84,19 @@ class FSLTrainer(pl.LightningModule):
                 seed=self.hparams['seed'],
                 transform=imagenet_transform(stage='val')
             )
+
+        self.test_dataset = custom_dataset(
+            sampling_policy=self.sampling_policy,
+            id_to_sentence=self.id_to_sentence,
+            sentence_to_id=self.sentence_to_id,
+            ways=self.hparams['num_way'],
+            shots=self.hparams['num_shot'],
+            test_shots=self.hparams['num_query'],
+            meta_test=True,
+            download=False,
+            seed=self.hparams['seed'],
+            transform=imagenet_transform(stage='test')
+        )
 
     def train_dataloader(self):
         self.train_loader = BatchMetaDataLoader(self.train_dataset, batch_size=self.hparams['batch_size'],
@@ -83,6 +109,11 @@ class FSLTrainer(pl.LightningModule):
                                                   num_workers=self.hparams['num_cpu'], pin_memory=True)
 
         return self.val_dataloader
+
+    def test_dataloader(self):
+        self.test_dataloader = BatchMetaDataLoader(self.test_dataset, shuffle=False,
+                                                   batch_size=self.hparams['batch_size'],
+                                                   num_workers=self.hparams['num_cpu'], pin_memory=True)
 
     def training_step(self, batch, batch_idx):
         support_data, support_text, support_labels = batch["train"]
@@ -178,6 +209,7 @@ class FSLTrainer(pl.LightningModule):
         return results
 
     def forward(self, support_image_data, query_image_data, support_test_text, query_text_data, support_labels, query_labels, index):
+
         # (1, 80, 3, 84, 84)
         # support_data, query_data, support_labels, query_labels = original_support_data, original_query_data, original_support_labels, original_query_labels
         # input = torch.cat((support_data, query_data), 1)
@@ -188,33 +220,30 @@ class FSLTrainer(pl.LightningModule):
         # (bs, num_way * num_query, emb_size)
         query_image_feature = backbone_two_stage_initialization(query_image_data, self.image_backbone)
 
-        id_to_sentence = self.hparams['id_to_sentence']
-
         # (bs, num_way * num_shot, emb_size)
-        support_text_feature = backbone_sentence_embedding(support_test_text, self.text_backbone, id_to_sentence)
+        support_text_feature = backbone_sentence_embedding(support_test_text, self.text_backbone, self.id_to_sentence)
         # (bs, num_way * num_query, emb_size)
-        query_text_feature = backbone_sentence_embedding(query_text_data, self.text_backbone, id_to_sentence)
+        query_text_feature = backbone_sentence_embedding(query_text_data, self.text_backbone, self.id_to_sentence)
 
-        accuracy, ce_loss = self.model([support_image_feature, query_image_feature, support_text_feature, query_text_feature], support_labels, query_labels)
+        accuracy, ce_loss = self.model([support_image_feature, query_image_feature, support_text_feature, query_text_feature], support_labels, query_labels, self.hparams["fusion_method"])
         loss = ce_loss
         return loss, accuracy
 
     def configure_optimizers(self):
         # set optimizer
-        if self.config is not None:
-            pass
-        else:
-            param_list = list(self.image_backbone.parameters()) + list(self.text_backbone.parameters()) + list(self.model.parameters())
-            # default optimizer
-            self.optimizer = torch.optim.Adam(
-                params=param_list,
-                lr=self.hparams['lr'],
-                weight_decay=self.hparams['weight_decay']
-            )
 
-            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(
-                self.optimizer,
-                step_size=self.hparams['lr_schedule_step_size'],
-                gamma=self.hparams['lr_schedule_gamma']
-            )
+        param_list = list(self.image_backbone.parameters()) + list(self.text_backbone.parameters()) + list(self.model.parameters())
+
+        # default optimizer
+        self.optimizer = torch.optim.Adam(
+            params=param_list,
+            lr=self.hparams['lr'],
+            weight_decay=self.hparams['weight_decay']
+        )
+
+        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(
+            self.optimizer,
+            step_size=self.hparams['lr_schedule_step_size'],
+            gamma=self.hparams['lr_schedule_gamma']
+        )
         return [self.optimizer], [self.lr_scheduler]

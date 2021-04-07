@@ -1,5 +1,5 @@
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import WandbLogger
+# from pytorch_lightning.loggers import WandbLogger
 import argparse
 import os
 from pytorch_lightning.callbacks import EarlyStopping
@@ -18,15 +18,16 @@ import yaml
 import uuid
 from pytorch_lightning.callbacks import ModelCheckpoint
 import pickle as pkl
-import wandb
+import platform
 
 
 def run(config):
     if config['num_gpu'] > 0:
-        os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
     os.environ["SLURM_JOB_NAME"] = "bash"
-    os.environ["WANDB_API_KEY"]= "8fd7e687a9621b400944187435697160cbc9f0ef"
+    # os.environ["WANDB_API_KEY"]= "8fd7e687a9621b400944187435697160cbc9f0ef"
+    os.environ["NCCL_P2P_DISABLE"] = "1"
     exp_name = '{}' \
                '_dataset-{}' \
                '_backbone-{}' \
@@ -65,14 +66,15 @@ def run(config):
         verbose=True,
         mode='max'
     )
-    save_root_dir = './{}'.format(config['exp_dir'])
-    os.makedirs(save_root_dir, exist_ok=True)
-    wandb_logger = WandbLogger(name=exp_name,
-                               save_dir=save_root_dir,
-                               project='FSL-MULTIMODAL-{}'.format(config['exp_dir']),
-                               log_model=False,
-                               offline=True
-                               )
+
+    # save_root_dir = './{}'.format(config['exp_dir'])
+    # os.makedirs(save_root_dir, exist_ok=True)
+    # wandb_logger = WandbLogger(name=exp_name,
+    #                            save_dir=save_root_dir,
+    #                            project='FSL-MULTIMODAL-{}'.format(config['exp_dir']),
+    #                            log_model=False,
+    #                            offline=True
+    #                            )
 
     # checkpoint_callback = ModelCheckpoint(
     #     dirpath=os.path.join(config['exp_dir'], "checkpoints"),
@@ -90,7 +92,7 @@ def run(config):
     trainer = pl.Trainer(
         # early_stop_callback=early_stop_callback,
         # callbacks=[checkpoint_callback],
-        # fast_dev_run=True,
+        fast_dev_run=True,
         deterministic=True,
         num_sanity_val_steps=0,
         max_epochs=config['num_epoch'],
@@ -101,33 +103,27 @@ def run(config):
         limit_train_batches=config['train_size'],
         limit_val_batches=config['validation_size'],
         limit_test_batches=config['test_size'],
-        check_val_every_n_epoch=check_val_every_n_epoch,
+        # check_val_every_n_epoch=check_val_every_n_epoch,
     )
 
-    fsl_trainer = FSLTrainer(config)
+    if config["ckpt"] is not None:
+        ckpt_path = os.path.join(config['project_root_path'], config['ckpt'])
+        fsl_trainer = FSLTrainer.load_from_checkpoint(ckpt_path)
+        fsl_trainer.set_config(config)
+        print("FSL TRAINER LOADED FROM: {}".format(config['ckpt']))
+    else:
+        fsl_trainer = FSLTrainer(config)
 
     trainer.fit(fsl_trainer)
+    test_result = trainer.test()
 
-    test_dataset = custom_dataset(
-        sampling_policy=config["data"],
-        id_to_sentence=config['id_to_sentence'],
-        sentence_to_id=config['sentence_to_id'],
-        ways=config['num_way'],
-        shots=config['num_shot'],
-        test_shots=config['num_query'],
-        meta_test=True,
-        download=False,
-        seed=config['seed'],
-        transform=imagenet_transform(stage='test')
-    )
-    test_dataloader = BatchMetaDataLoader(test_dataset, shuffle=False, batch_size=config['batch_size'], num_workers=config['num_cpu'], pin_memory=True)
+    # if type(test_result) == list:
+    #     test_result = test_result[0]["test_accuracy_mean"]
+    # elif type(test_result) == dict:
+    #     test_result = test_result["test_accuracy_mean"]
 
-    test_result = trainer.test(test_dataloaders=test_dataloader)
-    if type(test_result) == list:
-        tune.report(test_result=test_result[0]["test_accuracy_mean"])
-    elif type(test_result) == dict:
-        tune.report(test_result=test_result["test_accuracy_mean"])
-    print('trail: {}, test accuracy: {}'.format(exp_name, test_result))
+    print('trail：{}'.format(exp_name))
+    print(test_result)
 
 
 def main():
@@ -138,7 +134,7 @@ def main():
                         help='number of budgets')
     parser.add_argument('--num_gpu', type=int, default=1,
                         help='number of gpu per trail')
-    parser.add_argument('--num_cpu', type=int, default=32,
+    parser.add_argument('--num_cpu', type=int, default=0,
                         help='number of cpu per trail')
     parser.add_argument('--exp_dir', type=str,
                         # required=True,
@@ -153,17 +149,20 @@ def main():
                         help='number of batch for validation')
     parser.add_argument('--test_size', type=int, default=500,
                         help='number of batch for test')
-    parser.add_argument('--num_epoch', type=int, default=2,
+    parser.add_argument('--num_epoch', type=int, default=50,
                         help='number of epoch')
-    parser.add_argument('--batch_size', type=int, default=20,
+    parser.add_argument('--batch_size', type=int, default=1,
                         help='number of episode per batch')
     parser.add_argument('--select_func', type=str, default='grid',
                         help='function for selecting hp')
-
+    parser.add_argument('--fusion_method', type=str, default='attention',
+                        help='fusion method to text and image data')
+    parser.add_argument('--ckpt', type=str,
+                        # default='result_files_additive_50epoch/FSL-MULTIMODAL/checkpoints/epoch_49.ckpt',
+                        default=None,
+                        help='function for selecting hp')
     args = parser.parse_args()
-
     print('budget, cpu, gpu: {}, {}, {}'.format(args.budgets, args.num_cpu, args.num_gpu))
-
     ray.init(local_mode=True)
     ray_resources = ray.available_resources()
     print('available devices: {}'.format(ray_resources))
@@ -175,6 +174,11 @@ def main():
     else:
         print('invalid search function')
         exit()
+    new_config = dict()
+    for key in config:
+        new_config[key] = config[key]["grid_search"][0]
+
+    config = new_config
     config['task_file'] = args.task_file
     config['num_gpu'] = args.num_gpu
     config['num_cpu'] = args.num_cpu
@@ -186,6 +190,7 @@ def main():
     config['test_size'] = args.test_size
     config['num_epoch'] = args.num_epoch
     config['batch_size'] = args.batch_size
+    config["fusion_method"] = args.fusion_method
     with open(args.task_file) as file:
         task_yaml = yaml.load(file, Loader=yaml.FullLoader)
     config['exp_dir'] = task_yaml["RESULT_FILE_DIR"]
@@ -193,31 +198,33 @@ def main():
     config['num_way'] = task_yaml["FSL_INFO"]["N"]
     config['num_shot'] = task_yaml["FSL_INFO"]["K"]
     config['num_query'] = task_yaml["FSL_INFO"]["Q"]
-    with open(os.path.join(config["dataset_root"], "data.pkl"), "rb") as f:
-        data = pkl.load(f)
-        f.close()
-    with open(os.path.join("pkl", "id_sentence_encoder.pkl"), "rb") as f:
-        id_to_sentence = pkl.load(f)
-        print()
-        f.close()
-    with open(os.path.join("pkl", "sentence_id_encoder.pkl"), "rb") as f:
-        sentence_to_id = pkl.load(f)
-        print()
-        f.close()
-    config["data"] = data
-    config['id_to_sentence'] = id_to_sentence
-    config['sentence_to_id'] = sentence_to_id
+    config['ckpt'] = args.ckpt
+    config['project_root_path'] = os.getcwd()
 
-    analysis = tune.run(
-        run_or_experiment=run,
-        config=config,
-        resources_per_trial={"cpu": config['num_cpu'], "gpu": config['num_gpu']},
-        num_samples=config['budgets'] if args.select_func == 'choice' else 1,
-        local_dir='{}'.format(config['exp_dir']),
-        # trial_name_creator=tune.function(trial_name_string),
-        queue_trials=True,
-        reuse_actors=True,
-    )
+    # with torch.autograd.profiler.profile(
+    #         enabled=True,
+    #         # with_flops=True,
+    #         use_cuda=True,
+    #         record_shapes=True,
+    #         profile_memory=True,
+    #         with_stack=True,
+    #         use_cpu=True,
+    # ) as prof:
+    #     # try:
+    #     #     analysis = tune.run(
+    #     #         run_or_experiment=run,
+    #     #         config=config,
+    #     #         resources_per_trial={"cpu": config['num_cpu'], "gpu": config['num_gpu']},
+    #     #         num_samples=config['budgets'] if args.select_func == 'choice' else 1,
+    #     #         local_dir='{}'.format("saves"),
+    #     #         trial_dirname_creator=tune.function(trial_name_string),
+    #     #         queue_trials=True,
+    #     #         reuse_actors=True,
+    #     #     )
+    #     run(config)
+    # prof.export_chrome_trace('./profile.json')
+
+    run(config)
 
     # os.makedirs(os.path.join("..", task_yaml["RUN_FILE_DIR"]), exist_ok=True)
     # yaml_export = os.path.join("..", task_yaml["RUN_FILE_DIR"], task_yaml["NAME"] + ".run.yaml")
