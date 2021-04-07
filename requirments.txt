@@ -1,4 +1,4 @@
-pytorch_lightning
+pytorch_lightning==0.9.0
 rich
 torchmeta
 ray
@@ -6,8 +6,10 @@ PyYAML
 torch
 torchvision
 matplotlib
-sentence_transformers
 jsonlines
 numpy
 pillow
+wandb
 opencv-python
+sentence-transformers
+timm

@@ -18,12 +18,15 @@ import yaml
 import uuid
 from pytorch_lightning.callbacks import ModelCheckpoint
 import pickle as pkl
+import wandb
 
 
 def run(config):
     if config['num_gpu'] > 0:
         os.environ["CUDA_VISIBLE_DEVICES"] = '0'
-
+    os.environ["TOKENIZERS_PARALLELISM"] = "true"
+    os.environ["SLURM_JOB_NAME"] = "bash"
+    os.environ["WANDB_API_KEY"]= "8fd7e687a9621b400944187435697160cbc9f0ef"
     exp_name = '{}' \
                '_dataset-{}' \
                '_backbone-{}' \
@@ -63,19 +66,30 @@ def run(config):
         mode='max'
     )
     save_root_dir = './{}'.format(config['exp_dir'])
-
     os.makedirs(save_root_dir, exist_ok=True)
     wandb_logger = WandbLogger(name=exp_name,
                                save_dir=save_root_dir,
-                               project='FSL-BMK-{}'.format(config['exp_dir']),
+                               project='FSL-MULTIMODAL-{}'.format(config['exp_dir']),
                                log_model=False,
                                offline=True
                                )
 
-    checkpoint_callback = ModelCheckpoint()
+    # checkpoint_callback = ModelCheckpoint(
+    #     dirpath=os.path.join(config['exp_dir'], "checkpoints"),
+    #     filename=os.path.join(exp_name, '-{epoch:02d}-{val_acc:.2f}'),
+    #     monitor='val_acc',
+    #     save_top_k=1,
+    #     mode='max',
+    # )
+
+    if config['num_epoch'] > 10:
+        check_val_every_n_epoch = config['num_epoch'] // 10
+    else:
+        check_val_every_n_epoch = 2
+
     trainer = pl.Trainer(
         # early_stop_callback=early_stop_callback,
-        # checkpoint_callback=checkpoint_callback,
+        # callbacks=[checkpoint_callback],
         # fast_dev_run=True,
         deterministic=True,
         num_sanity_val_steps=0,
@@ -87,6 +101,7 @@ def run(config):
         limit_train_batches=config['train_size'],
         limit_val_batches=config['validation_size'],
         limit_test_batches=config['test_size'],
+        check_val_every_n_epoch=check_val_every_n_epoch,
     )
 
     fsl_trainer = FSLTrainer(config)
@@ -108,8 +123,10 @@ def run(config):
     test_dataloader = BatchMetaDataLoader(test_dataset, shuffle=False, batch_size=config['batch_size'], num_workers=config['num_cpu'], pin_memory=True)
 
     test_result = trainer.test(test_dataloaders=test_dataloader)
-    tune.report(test_result=test_result["test_accuracy_mean"])
-
+    if type(test_result) == list:
+        tune.report(test_result=test_result[0]["test_accuracy_mean"])
+    elif type(test_result) == dict:
+        tune.report(test_result=test_result["test_accuracy_mean"])
     print('trail: {}, test accuracy: {}'.format(exp_name, test_result))
 
 
@@ -132,13 +149,13 @@ def main():
                         help='dataset root')
     parser.add_argument('--train_size', type=int, default=100,
                         help='number of batch for train')
-    parser.add_argument('--validation_size', type=int, default=50,
+    parser.add_argument('--validation_size', type=int, default=100,
                         help='number of batch for validation')
-    parser.add_argument('--test_size', type=int, default=1000,
+    parser.add_argument('--test_size', type=int, default=500,
                         help='number of batch for test')
     parser.add_argument('--num_epoch', type=int, default=2,
                         help='number of epoch')
-    parser.add_argument('--batch_size', type=int, default=30,
+    parser.add_argument('--batch_size', type=int, default=20,
                         help='number of episode per batch')
     parser.add_argument('--select_func', type=str, default='grid',
                         help='function for selecting hp')

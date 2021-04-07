@@ -1,5 +1,5 @@
 # CSC2541 Course Project By Shihao Ma, Yichun Zhang, and Zilun Zhang
-## How Multimodal Data Improved Few Shot Learning
+## How Multimodal Data Improves Few Shot Learning
 
 Implementation of course project of **CSC2541 Winter 2021 Topics in Machine Learning: Neural Net Training Dynamics**
 
@@ -66,6 +66,9 @@ python3 inference.py --num_cpu 16 --num_gpu 1 --task_file config.yaml --ckpt_fil
 |    Backbone    | Model| Modality | Accuracy | Checkpoint|
 | :-----------: |:----------------:|:----------------:| :----------------:| :----------------:|
 | [4-Conv](https://arxiv.org/abs/1605.05395) | [ProtoNet](https://arxiv.org/abs/1703.05175) | Image |46.29| [here](https://drive.google.com/file/d/1IGb2OfuysWutgwD3KTAfrj1vEg8DV9Xh/view?usp=sharing)| 
+| [ResNet12](https://github.com/kjunelee/MetaOptNet) | [ProtoNet](https://arxiv.org/abs/1703.05175) | Image |54.07| [here]()| 
+| [4-Conv](https://arxiv.org/abs/1605.05395) | [MAML](https://arxiv.org/abs/1703.03400) | Image |42.46| [here]()| 
 | [4-Conv](https://arxiv.org/abs/1605.05395) | [ProtoNet](https://arxiv.org/abs/1703.05175) | Image + Text |-| [here]()| 
+
 
 
