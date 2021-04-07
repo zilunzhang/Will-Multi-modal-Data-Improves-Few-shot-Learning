@@ -5,46 +5,6 @@ from utils import get_accuracy
 import torch.nn.functional as F
 import math
 import numpy as np
-
-
-class Attention(torch.nn.Module):
-
-    def __init__(self, q_dim, k_dim, v_dim, h_dim):
-        super().__init__()
-        self.q = nn.Linear(q_dim, h_dim)
-        self.k = nn.Linear(k_dim, h_dim)
-        self.v = nn.Linear(v_dim, h_dim)
-
-    def similarity(self, attention_type, query, key):
-        """
-        Similarity Function of Attention
-        :param attention_type: additive, scale dot, mlp
-        :param query: (bs, 80, 128), text
-        :param key: (bs, 80, 128), image
-        :return: (bs, 80, 80)
-        """
-
-        scores = torch.bmm(query, key.permute(0, 2, 1)) / math.sqrt(key.shape[-1])
-
-        return scores
-
-    def forward(self, query, key, value):
-        """
-        https://arxiv.org/pdf/1706.03762.pdf
-        :param query: (bs, 80, 128), text
-        :param key: (bs, 80, 128), image
-        :param value: (bs, 80, 128), image
-        :return: (bs, 80, 128)
-        """        
-        
-        query = self.q(query)
-        key = self.k(key)
-        value = self.v(value)
-        scores = self.similarity("scaled_dot_product", query, key)
-        att_map = F.softmax(scores, dim=-1)
-        context = torch.bmm(att_map, value)
-
-        return context
     
 
 class ProtoNet(nn.Module):
@@ -91,16 +51,17 @@ class ProtoNet(nn.Module):
         # support_text_feature: (bs, num_way * num_shot, emb_size)
         # query_text_feature: (bs, num_way * num_query, emb_size)
 
-        support_image_feature, query_image_feature, support_text_feature, query_text_feature = backbone_output
-        support_text_feature = F.normalize(support_text_feature, dim=-1)
-        query_image_feature = F.normalize(query_image_feature, dim=-1)
-        query_text_feature = F.normalize(query_text_feature, dim=-1)
-        support_image_feature = F.normalize(support_image_feature, dim=-1)
+        unnormalized_support_image_feature, unnormalized_query_image_feature, unnormalized_support_text_feature, unnormalized_query_text_feature = backbone_output
+        support_text_feature = F.normalize(unnormalized_support_text_feature, dim=-1)
+        query_image_feature = F.normalize(unnormalized_query_image_feature, dim=-1)
+        query_text_feature = F.normalize(unnormalized_query_text_feature, dim=-1)
+        support_image_feature = F.normalize(unnormalized_support_image_feature, dim=-1)
 
         device = torch.device('cuda' if support_image_feature.is_cuda else 'cpu')
         self.t = self.t.to(device)
         self.matching_loss_coeff = self.matching_loss_coeff.to(device)
         self.fusion_fc = self.fusion_fc.to(device)
+
         support_feature, query_feature = self.emb_fusion(
             support_image_feature,
             support_text_feature,
@@ -108,6 +69,7 @@ class ProtoNet(nn.Module):
             query_text_feature,
             mode=fusion_method
         )
+
         # prototypes: (bs, num_way, emb_size)
         prototypes = get_prototypes(support_feature, support_labels, self.num_way)
         cls_loss = prototypical_loss(prototypes, query_feature, query_labels)
@@ -133,21 +95,18 @@ class ProtoNet(nn.Module):
                 # (80, 128)
                 text_feat = all_text_feature[i]
 
+                # def contrastive_loss(logits, dim):
+                #     neg_ce = torch.diag(torch.nn.functional.log_softmax(logits, dim=dim))
+                #     return -neg_ce.mean()
                 # cos_sim = torch.matmul(img_feat, text_feat.T)
                 # cos_sim_with_temp = cos_sim * torch.exp(self.t)
                 # image_loss = contrastive_loss(cos_sim_with_temp, dim=0)
                 # caption_loss = contrastive_loss(cos_sim_with_temp, dim=1)
-                # cl = (image_loss + caption_loss) / 2.0
-                # # matching loss
-                # def contrastive_loss(logits, dim):
-                #     neg_ce = torch.diag(torch.nn.functional.log_softmax(logits, dim=dim))
-                #     return -neg_ce.mean()
+                # contrastive_loss = (image_loss + caption_loss) / 2.0
 
-                # cosine similarity as logits
                 scale = torch.exp(self.t)
                 logits_per_image = scale * img_feat @ text_feat.t()
                 logits_per_text = scale * text_feat @ img_feat.t()
-
                 labels = torch.arange(len(logits_per_image)).to(logits_per_image.device)
                 image_loss = F.cross_entropy(logits_per_image, labels)
                 text_loss = F.cross_entropy(logits_per_text, labels)
@@ -162,3 +121,44 @@ class ProtoNet(nn.Module):
         with torch.no_grad():
             accuracy = get_accuracy(prototypes, query_feature, query_labels)
         return accuracy, loss
+
+
+class Attention(torch.nn.Module):
+
+    def __init__(self, q_dim, k_dim, v_dim, h_dim):
+        super().__init__()
+        self.q = nn.Linear(q_dim, h_dim)
+        self.k = nn.Linear(k_dim, h_dim)
+        self.v = nn.Linear(v_dim, h_dim)
+
+    def similarity(self, attention_type, query, key):
+        """
+        Similarity Function of Attention
+        :param attention_type: additive, scale dot, mlp
+        :param query: (bs, 80, 128), text
+        :param key: (bs, 80, 128), image
+        :return: (bs, 80, 80)
+        """
+
+        scores = torch.bmm(query, key.permute(0, 2, 1)) / math.sqrt(key.shape[-1])
+
+        return scores
+
+    def forward(self, query, key, value):
+        """
+        https://arxiv.org/pdf/1706.03762.pdf
+        :param query: (bs, 80, 128), text
+        :param key: (bs, 80, 128), image
+        :param value: (bs, 80, 128), image
+        :return: (bs, 80, 128)
+        """
+
+        query = self.q(query)
+        key = self.k(key)
+        value = self.v(value)
+        scores = self.similarity("scaled_dot_product", query, key)
+        # att_map = F.softmax(scores, dim=-1)
+        att_map = scores / torch.mean(scores, dim=-1, keepdim=True)
+        context = torch.bmm(att_map, value)
+
+        return context

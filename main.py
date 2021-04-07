@@ -149,13 +149,13 @@ def main():
                         help='number of batch for validation')
     parser.add_argument('--test_size', type=int, default=500,
                         help='number of batch for test')
-    parser.add_argument('--num_epoch', type=int, default=50,
+    parser.add_argument('--num_epoch', type=int, default=100,
                         help='number of epoch')
     parser.add_argument('--batch_size', type=int, default=20,
                         help='number of episode per batch')
     parser.add_argument('--select_func', type=str, default='grid',
                         help='function for selecting hp')
-    parser.add_argument('--fusion_method', type=str, default='attention',
+    parser.add_argument('--fusion_method', type=str, default='mean',
                         help='fusion method to text and image data')
     parser.add_argument('--ckpt', type=str,
                         # default='result_files_additive_50epoch/FSL-MULTIMODAL/checkpoints/epoch_49.ckpt',
