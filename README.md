@@ -10,11 +10,11 @@ Course Website : https://www.cs.toronto.edu/~rgrosse/courses/csc2541_2021/
 
 ## Requirements
 
-CUDA Version: 10.0
+CUDA Version: 11.2
 
-CUDNN Version: 7.5.0
+CUDNN Version: 8.1.1
 
-Python : 3.6.6
+Python : 3.8
 
 To install dependencies:
 
