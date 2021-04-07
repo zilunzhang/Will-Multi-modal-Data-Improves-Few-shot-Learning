@@ -242,6 +242,10 @@ class MAML(nn.Module):
         support_image_data, query_image_data, support_text_feature, query_text_feature = backbone_output
 
         device = torch.device('cuda' if support_image_data.is_cuda else 'cpu')
+        self.t = self.t.to(device)
+        self.matching_loss_coeff = self.matching_loss_coeff.to(device)
+        self.fusion_fc = self.fusion_fc.to(device)
+
         support_image_feature = torch.zeros(support_text_feature.shape).to(device)
         query_image_feature = torch.zeros(query_text_feature.shape).to(device)
         outer_loss = torch.tensor(0., device=device)
