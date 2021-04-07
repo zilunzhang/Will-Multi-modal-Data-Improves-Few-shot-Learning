@@ -10,7 +10,6 @@ class Attention(torch.nn.Module):
 
     def __init__(self, q_dim, k_dim, v_dim, h_dim):
         super().__init__()
-        self.softmax = nn.Softmax(dim=1)
         self.q = nn.Linear(q_dim, h_dim)
         self.k = nn.Linear(k_dim, h_dim)
         self.v = nn.Linear(v_dim, h_dim)
@@ -41,7 +40,7 @@ class Attention(torch.nn.Module):
         key = self.k(key)
         value = self.v(value)
         scores = self.similarity("scaled_dot_product", query, key)
-        att_map = self.softmax(scores, dim=-1)
+        att_map = F.softmax(scores, dim=-1)
         context = torch.bmm(att_map, value)
 
         return context
@@ -60,9 +59,9 @@ class ProtoNet(nn.Module):
         self.t = nn.Parameter(torch.Tensor(1))
         self.matching_loss_coeff = nn.Parameter(torch.Tensor(1))
         self.fusion_fc = nn.Linear(2 * emb_size, emb_size)
-        self.attention = attention(emb_size, emb_size, emb_size, emb_size)
+        self.attention = Attention(emb_size, emb_size, emb_size, emb_size)
 
-    def emb_fusion(self, support_image_feature, support_text_feature, query_image_feature, query_text_feature, mode="mean"):
+    def emb_fusion(self, support_image_feature, support_text_feature, query_image_feature, query_text_feature, mode="fc"):
         if mode == "mean":
             support_feature = (support_image_feature + support_text_feature) / 2
             query_feature = (query_image_feature + query_text_feature) / 2
@@ -105,7 +104,7 @@ class ProtoNet(nn.Module):
             support_text_feature,
             query_image_feature,
             query_text_feature,
-            mode="attention"
+            mode="fc"
         )
         # prototypes: (bs, num_way, emb_size)
         prototypes = get_prototypes(support_feature, support_labels, self.num_way)
