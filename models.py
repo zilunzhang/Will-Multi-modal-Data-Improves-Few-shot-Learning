@@ -23,7 +23,7 @@ class ProtoNet(nn.Module):
 
         # self.t = nn.Parameter(torch.Tensor(1))
         self.t = nn.Parameter(torch.log(torch.tensor(1/0.07)))
-        self.matching_loss_coeff = nn.Parameter(torch.tensor(1))
+        self.matching_loss_coeff = nn.Parameter(torch.tensor(1.0))
         self.fusion_fc = nn.Linear(2 * emb_size, emb_size)
         self.attention = Attention(emb_size, emb_size, emb_size, emb_size)
 
