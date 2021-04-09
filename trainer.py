@@ -143,7 +143,7 @@ class FSLTrainer(pl.LightningModule):
         # torch.set_grad_enabled(True)
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
-        valid_loss, valid_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx)
+        valid_loss, valid_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx, False)
         val_result = pl.EvalResult()
         valid_tensorboard_logs = {'val_loss': valid_loss, 'val_acc': valid_accuracy}
         val_result.log_dict(valid_tensorboard_logs, prog_bar=True, logger=True, on_step=True)
@@ -170,7 +170,7 @@ class FSLTrainer(pl.LightningModule):
         if self.hparams["num_gpu"] != 0:
             support_data, query_data, support_labels, query_labels = support_data.to("cuda"), query_data.to(
                 "cuda"), support_labels.to("cuda"), query_labels.to("cuda")
-        test_loss, test_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx)
+        test_loss, test_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx, False)
 
         test_result = pl.EvalResult()
         test_tensorboard_logs = {'test_loss': test_loss, 'test_acc': test_accuracy}
@@ -191,7 +191,7 @@ class FSLTrainer(pl.LightningModule):
         test_end_result.log_dict(test_end_tensorboard_logs, prog_bar=True, logger=True, on_step=True)
         return test_end_result
 
-    def forward(self, support_image_data, query_image_data, support_test_text, query_text_data, support_labels, query_labels, index):
+    def forward(self, support_image_data, query_image_data, support_test_text, query_text_data, support_labels, query_labels, index, is_train=True):
 
         # (1, 80, 3, 84, 84)
         # support_data, query_data, support_labels, query_labels = original_support_data, original_query_data, original_support_labels, original_query_labels
@@ -199,16 +199,24 @@ class FSLTrainer(pl.LightningModule):
         # img_vis(self.hpparams['num_way'], support_data, query_data, index)
 
         # (bs, num_way * num_shot, emb_size)
-        support_image_feature = backbone_two_stage_initialization(support_image_data, self.image_backbone, self.hparams["fusion_method"])
-        # (bs, num_way * num_query, emb_size)
-        query_image_feature = backbone_two_stage_initialization(query_image_data, self.image_backbone, self.hparams["fusion_method"])
-
-        # (bs, num_way * num_shot, emb_size)
         support_text_feature = backbone_sentence_embedding(support_test_text, self.text_backbone, self.id_to_sentence, self.hparams["fusion_method"])
         # (bs, num_way * num_query, emb_size)
         query_text_feature = backbone_sentence_embedding(query_text_data, self.text_backbone, self.id_to_sentence, self.hparams["fusion_method"])
-        accuracy, loss = self.model([support_image_feature, query_image_feature, support_text_feature, query_text_feature], support_labels, query_labels, self.hparams["fusion_method"])
 
+        if self.hparams["model"] == "MAML":
+            accuracy, loss = self.model(
+                [support_image_data, query_image_data, support_text_feature, query_text_feature], support_labels,
+                query_labels, self.hparams["fusion_method"], is_train)
+        else:
+            # (bs, num_way * num_shot, emb_size)
+            support_image_feature = backbone_two_stage_initialization(support_image_data, self.image_backbone,
+                                                                      self.hparams["fusion_method"])
+            # (bs, num_way * num_query, emb_size)
+            query_image_feature = backbone_two_stage_initialization(query_image_data, self.image_backbone,
+                                                                    self.hparams["fusion_method"])
+            accuracy, loss = self.model(
+                [support_image_feature, query_image_feature, support_text_feature, query_text_feature], support_labels,
+                query_labels, self.hparams["fusion_method"], is_train)
         return loss, accuracy
 
     def configure_optimizers(self):

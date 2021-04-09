@@ -24,38 +24,40 @@ matplotlib.use("Agg")
 
 
 def imagenet_transform(stage):
-    mean_pix = [x / 255.0 for x in [120.39586422, 115.59361427, 104.54012653]]
-    std_pix = [x / 255.0 for x in [70.68188272, 68.27635443, 72.54505529]]
-    normalize = Normalize(mean=mean_pix, std=std_pix)
-    # set transformer
-    if stage == 'train':
-        transform = Compose([
-            RandomCrop(84, padding=4),
-            RandomHorizontalFlip(),
-            ColorJitter(brightness=.1,
-                        contrast=.1,
-                        saturation=.1,
-                        hue=.1),
-            # lambda x: np.asarray(x),
-            ToTensor(),
-            normalize
-        ]
-        )
-    else:  # 'val' or 'test' ,
-        transform = Compose([
-            # lambda x: np.asarray(x),
-            ToTensor(),
-            normalize
-        ]
-        )
-    # transform = Compose(
-    #     [
+    # mean_pix = [x / 255.0 for x in [120.39586422, 115.59361427, 104.54012653]]
+    # std_pix = [x / 255.0 for x in [70.68188272, 68.27635443, 72.54505529]]
+    # normalize = Normalize(mean=mean_pix, std=std_pix)
+    # # set transformer
+    # if stage == 'train':
+    #     transform = Compose([
+    #         RandomCrop(84, padding=4),
+    #         RandomHorizontalFlip(),
+    #         ColorJitter(brightness=.1,
+    #                     contrast=.1,
+    #                     saturation=.1,
+    #                     hue=.1),
     #         Resize(84),
     #         CenterCrop(84),
     #         ToTensor(),
-    #         Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    #         normalize
     #     ]
-    # )
+    #     )
+    # else:  # 'val' or 'test' ,
+    #     transform = Compose([
+    #         Resize(84),
+    #         CenterCrop(84),
+    #         ToTensor(),
+    #         normalize
+    #     ]
+    #     )
+    transform = Compose(
+        [
+            Resize(84),
+            CenterCrop(84),
+            ToTensor(),
+            Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
     return transform
 
 
@@ -209,27 +211,6 @@ def get_accuracy(prototypes, embeddings, targets):
     return torch.mean(predictions.eq(targets).float())
 
 
-# def trans_data_order(data, label, num_way):
-#     """
-#     data: (1, 75, 3, 84, 84)
-#     label: (1, 74)
-#     case:
-#            000011111222223333344444 -> 01234012340123401234
-#                                 or
-#            01234012340123401234 -> 000011111222223333344444
-#     """
-#     data_reshape = torch.reshape(data, (data.shape[0], num_way, -1, *data.shape[-3:]))
-#     data_permute = data_reshape.permute(0, 2, 1, 3, 4, 5)
-#     data_permute_flat = torch.reshape(
-#         data_permute, (data_permute.shape[0], -1, *data_permute.shape[-3:])
-#     )
-#     label_reshape = torch.reshape(label, (label.shape[0], num_way, -1))
-#     label_permute = label_reshape.permute(0, 2, 1)
-#     label_permute_flat = torch.reshape(label_permute, (label_permute.shape[0], -1))
-#
-#     return data_permute_flat, label_permute_flat
-
-
 def mannul_seed_everything(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -249,24 +230,20 @@ def euclidean_metric(a, b):
     return logits
 
 
-def trial_name_string(trial):
+def get_accuracy_maml(logits, targets):
+    """Compute the accuracy (after adaptation) of MAML on the test/query points
+    Parameters
+    ----------
+    logits : `torch.FloatTensor` instance
+        Outputs/logits of the model on the query points. This tensor has shape
+        `(num_examples, num_classes)`.
+    targets : `torch.LongTensor` instance
+        A tensor containing the targets of the query points. This tensor has
+        shape `(num_examples,)`.
+    Returns
+    -------
+    accuracy : `torch.FloatTensor` instance
+        Mean accuracy on the query points
     """
-    Args:
-        trial (Trial): A generated trial object.
-
-    Returns:
-        trial_name (str): String representation of Trial.
-    """
-    print()
-    param_dict = trial.evaluated_params
-    # param_dict = trial
-    str = ""
-    # str += '{}-{}'.format('uuid', uuid)
-    str += "{}-{}".format("backbone", param_dict["backbone"])
-    str += "_{}-{}".format("model", param_dict["model"])
-    str += "_{}-{}".format("seed", param_dict["seed"])
-    str += "_{}-{}".format("lr", param_dict["lr"])
-    str += "_{}-{}".format("weight_decay", param_dict["weight_decay"])
-    str += "_{}-{}".format("lr_schedule_gamma", param_dict["lr_schedule_gamma"])
-    str += "_{}-{}".format("lr_schedule_step_size", param_dict["lr_schedule_step_size"])
-    return str
+    _, predictions = torch.max(logits, dim=-1)
+    return torch.mean(predictions.eq(targets).float())

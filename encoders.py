@@ -69,8 +69,7 @@ class ConvNet(nn.Module):
             conv_block(hid_dim, hid_dim),
             conv_block(hid_dim, z_dim),
         )
-        self.out_channels = 800
-        self.fc = nn.Linear(self.out_channels, emb_size)
+        self.fc = nn.Linear(hid_dim * 25, emb_size)
         self.image_conv1x1 = nn.Conv1d(1, 10, 1)
 
     def forward(self, x, fusion_method):

@@ -5,6 +5,7 @@ from utils import mannul_seed_everything, imagenet_transform
 from torch.utils.data import DataLoader
 import yaml
 from dataset import *
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 
 def inference(config):
@@ -14,9 +15,17 @@ def inference(config):
     if config['num_gpu'] > 0:
         os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
+    checkpoint_callback = ModelCheckpoint(
+        monitor='fix',
+        save_top_k=0,
+        mode='max',
+        save_last=True,
+    )
+
     trainer = pl.Trainer(
             gpus=config['num_gpu'],
             limit_test_batches=config['test_size'],
+            checkpoint_callback=checkpoint_callback
     )
 
     fsl_trainer = FSLTrainer.load_from_checkpoint(config['ckpt_file'])
@@ -38,11 +47,8 @@ def inference(config):
 
     test_dataloader = BatchMetaDataLoader(test_dataset, shuffle=False, batch_size=config['batch_size'], num_workers=config['num_cpu'], pin_memory=True)
     test_result = trainer.test(model=fsl_trainer, test_dataloaders=test_dataloader)
-    if type(test_result) == list:
-        result = test_result[0]
-    elif type(test_result) == dict:
-        result = test_result
-    return result
+
+    return test_result
 
 
 if __name__ == '__main__':
@@ -50,7 +56,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--task_file', type=str, default="config.yaml",
                         help='path of task file')
-    parser.add_argument('--ckpt_file', type=str, default="lightning_logs/version_0/checkpoints/epoch_79.ckpt",
+    parser.add_argument('--ckpt_file', type=str, default=None,
                                     help='path of ckpt file')
     parser.add_argument('--test_size', type=str, default=100)
     parser.add_argument('--num_gpu', type=int, default=1,
@@ -96,7 +102,7 @@ if __name__ == '__main__':
 
     test_result = inference(config)
     print(test_result)
-    test_acc_mean = test_result["test_accuracy_mean"]
-    test_acc_std = test_result["test_accuracy_std"]
-    print("{0} test episode, test accuracy: {1:.2g}\u00B1{2:.2g} ".format(args.test_size, test_acc_mean, test_acc_std ))
+    # test_acc_mean = test_result["test_accuracy_mean"]
+    # test_acc_std = test_result["test_accuracy_std"]
+    # print("{0} test episode, test accuracy: {1:.2g}\u00B1{2:.2g} ".format(args.test_size, test_acc_mean, test_acc_std ))
 

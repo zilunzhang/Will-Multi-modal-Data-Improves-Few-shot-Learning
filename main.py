@@ -72,7 +72,7 @@ def run(config):
     checkpoint_callback = ModelCheckpoint(
         filepath=os.path.join("saves", exp_name, "checkpoints"),
         monitor='fix',
-        save_top_k=1,
+        save_top_k=5,
         mode='max',
         save_last=True,
     )
@@ -85,7 +85,7 @@ def run(config):
     )
 
     if config['num_epoch'] > 10:
-        check_val_every_n_epoch = config['num_epoch'] // 10
+        check_val_every_n_epoch = config['num_epoch'] // 50
     else:
         check_val_every_n_epoch = 1
 
@@ -133,10 +133,9 @@ def main():
                         help='number of budgets')
     parser.add_argument('--num_gpu', type=int, default=1,
                         help='number of gpu per trail')
-    parser.add_argument('--num_cpu', type=int, default=16,
+    parser.add_argument('--num_cpu', type=int, default=0,
                         help='number of cpu per trail')
     parser.add_argument('--exp_dir', type=str,
-                        # required=True,
                         default='result_files',
                         help='experiment name')
     parser.add_argument('--dataset_root', type=str,
@@ -148,9 +147,9 @@ def main():
                         help='number of batch for validation')
     parser.add_argument('--test_size', type=int, default=500,
                         help='number of batch for test')
-    parser.add_argument('--num_epoch', type=int, default=100,
+    parser.add_argument('--num_epoch', type=int, default=500,
                         help='number of epoch')
-    parser.add_argument('--batch_size', type=int, default=20,
+    parser.add_argument('--batch_size', type=int, default=1,
                         help='number of episode per batch')
     parser.add_argument('--select_func', type=str, default='grid',
                         help='function for selecting hp')
@@ -182,7 +181,6 @@ def main():
     config['num_gpu'] = args.num_gpu
     config['num_cpu'] = args.num_cpu
     config['budgets'] = args.budgets
-    # config['exp_dir'] = args.exp_dir
     config['dataset_root'] = args.dataset_root
     config['train_size'] = args.train_size
     config['validation_size'] = args.validation_size
@@ -200,38 +198,7 @@ def main():
     config['ckpt'] = args.ckpt
     config['project_root_path'] = os.getcwd()
 
-    # with torch.autograd.profiler.profile(
-    #         enabled=True,
-    #         # with_flops=True,
-    #         use_cuda=True,
-    #         record_shapes=True,
-    #         profile_memory=True,
-    #         with_stack=True,
-    #         use_cpu=True,
-    # ) as prof:
-    #     # try:
-    #     #     analysis = tune.run(
-    #     #         run_or_experiment=run,
-    #     #         config=config,
-    #     #         resources_per_trial={"cpu": config['num_cpu'], "gpu": config['num_gpu']},
-    #     #         num_samples=config['budgets'] if args.select_func == 'choice' else 1,
-    #     #         local_dir='{}'.format("saves"),
-    #     #         trial_dirname_creator=tune.function(trial_name_string),
-    #     #         queue_trials=True,
-    #     #         reuse_actors=True,
-    #     #     )
-    #     run(config)
-    # prof.export_chrome_trace('./profile.json')
-
     run(config)
-
-    # os.makedirs(os.path.join("..", task_yaml["RUN_FILE_DIR"]), exist_ok=True)
-    # yaml_export = os.path.join("..", task_yaml["RUN_FILE_DIR"], task_yaml["NAME"] + ".run.yaml")
-    # print(yaml_export)
-    # with open(yaml_export, 'w') as file:
-    #     yaml.dump({"task_id": uuid.uuid4().int}, file)
-    #     yaml.dump({"task_config": task_yaml}, file)
-    #     yaml.dump({"model_config": config}, file)
 
 
 if __name__ == '__main__':
