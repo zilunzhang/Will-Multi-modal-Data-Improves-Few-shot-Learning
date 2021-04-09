@@ -191,7 +191,7 @@ class FSLTrainer(pl.LightningModule):
         test_end_result.log_dict(test_end_tensorboard_logs, prog_bar=True, logger=True, on_step=True)
         return test_end_result
 
-    def forward(self, support_image_data, query_image_data, support_test_text, query_text_data, support_labels, query_labels, index, is_train=True):
+    def forward(self, support_image_data, query_image_data, support_text_data, query_text_data, support_labels, query_labels, index, is_train=True):
 
         # (1, 80, 3, 84, 84)
         # support_data, query_data, support_labels, query_labels = original_support_data, original_query_data, original_support_labels, original_query_labels
@@ -199,7 +199,7 @@ class FSLTrainer(pl.LightningModule):
         # img_vis(self.hpparams['num_way'], support_data, query_data, index)
 
         # (bs, num_way * num_shot, emb_size)
-        support_text_feature = backbone_sentence_embedding(support_test_text, self.text_backbone, self.id_to_sentence, self.hparams["fusion_method"])
+        support_text_feature = backbone_sentence_embedding(support_text_data, self.text_backbone, self.id_to_sentence, self.hparams["fusion_method"])
         # (bs, num_way * num_query, emb_size)
         query_text_feature = backbone_sentence_embedding(query_text_data, self.text_backbone, self.id_to_sentence, self.hparams["fusion_method"])
 
