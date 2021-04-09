@@ -37,8 +37,8 @@ class ProtoNet(nn.Module):
             # bs * 75 * 800
             query_feature = self.fusion_fc(query_feature)
         elif mode == "attention":
-            support_feature = self.attention(support_text_feature, support_image_feature, support_image_feature)
-            query_feature = self.attention(query_text_feature, query_image_feature, query_image_feature)
+            support_feature = self.attention(support_image_feature, support_text_feature, support_text_feature)
+            query_feature = self.attention(query_image_feature, query_text_feature, query_text_feature)
         else:
             "please specify a fusion method"
             exit()
@@ -152,6 +152,12 @@ class Attention(torch.nn.Module):
             nn.Dropout(0.1),
             nn.Linear(5, 1),
         )
+        self.reduce_att = nn.Sequential(
+            nn.Linear(q_dim, 64),
+            nn.LeakyReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(64, 1),
+        )
 
     def similarity(self, attention_type, query, key, choice="mixed"):
         """
@@ -163,7 +169,6 @@ class Attention(torch.nn.Module):
         """
 
         device = torch.device('cuda' if query.is_cuda else 'cpu')
-        self.mlp = self.mlp.to(device)
 
         # shape problem
         if choice == "instance":
@@ -211,21 +216,55 @@ class Attention(torch.nn.Module):
         :param value: (bs, 5, 10, 128), image
         :return: (bs, 5, 10, 128)
         """
+        device = torch.device('cuda' if query.is_cuda else 'cpu')
+        self.mlp = self.mlp.to(device)
+        self.reduce_att = self.reduce_att.to(device)
+        self.q = self.q.to(device)
+        self.k = self.k.to(device)
+        self.v = self.v.to(device)
 
         query = self.q(query)
         key = self.k(key)
         value = self.v(value)
-        # (bs, 50, 50)
-        scores = self.similarity("scaled_dot_product", query, key)
+
+        # # The mixed option
+        # # (bs, 50, 50)
+        # scores = self.similarity("scaled_dot_product", query, key)
+        # att_map = F.softmax(scores, dim=-1)
+        # # att_map = scores / torch.sum(scores, dim=-1, keepdim=True)
+        # value = torch.reshape(value, (value.shape[0], value.shape[1] * value.shape[2], value.shape[3]))
+        # # (bs, 50, 50) x (bs, 50, 128) -> (bs, 50, 128)
+        # context = torch.bmm(att_map, value)
+        # # (bs, 5, 10, 128)
+        # context = torch.reshape(context, key.shape)
+        # # (bs, 5, 128, 10)
+        # permute_context = context.permute(0, 1, 3, 2)
+        # # (bs, 5, 128, 1)
+        # context = self.mlp(permute_context).squeeze(-1)
+
+        # The bs option
+        # (bs, 5, 10, 10)
+        scores = self.similarity("scaled_dot_product", query, key, choice="bs")
         att_map = F.softmax(scores, dim=-1)
-        # att_map = scores / torch.sum(scores, dim=-1, keepdim=True)
-        value = torch.reshape(value, (value.shape[0], value.shape[1] * value.shape[2], value.shape[3]))
-        # (bs, 50, 50) x (bs, 50, 128) -> (bs, 50, 128)
-        context = torch.bmm(att_map, value)
+
+        # loop through bs axis
+        num_bs = value.shape[0]
         # (bs, 5, 10, 128)
-        context = torch.reshape(context, key.shape)
-        # (bs, 5, 128, 10)
-        permute_context = context.permute(0, 1, 3, 2)
+        context = torch.zeros(value.shape[0], value.shape[1], value.shape[2], value.shape[3]).to(device)
+        i = 0
+        while i < num_bs:
+            # (5, 10, 128)
+            context[i] = torch.bmm(att_map[i], value[i])
+            i += 1
+
+        # (bs, 5, 10, 1)
+        att_reduce_weight = self.reduce_att(context)
         # (bs, 5, 128, 1)
-        context = self.mlp(permute_context).squeeze(-1)
-        return context
+        attended_content = torch.zeros(context.shape[0], context.shape[1], context.shape[3], att_reduce_weight.shape[3]).to(device)
+        i = 0
+        while i < num_bs:
+            # (5, 128, 10) * (5, 10, 1) -> (5, 128, 1)
+            attended_content[i] = torch.bmm(context[i].permute(0, 2, 1), att_reduce_weight[i])
+            i += 1
+    
+        return attended_content.squeeze(-1)
