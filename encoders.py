@@ -155,12 +155,14 @@ class ResNet12(nn.Module):
         self.layer_second = nn.Sequential(nn.Linear(in_features=layer_second_in_feat,
                                                     out_features=self.emb_size,
                                                     bias=True),
-                                          nn.BatchNorm1d(self.emb_size))
+                                          # nn.BatchNorm1d(self.emb_size)
+                                          )
 
         self.layer_last = nn.Sequential(nn.Linear(in_features=cfg[3],
                                                   out_features=self.emb_size,
                                                   bias=True),
-                                        nn.BatchNorm1d(self.emb_size))
+                                        # nn.BatchNorm1d(self.emb_size)
+                                        )
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -194,12 +196,12 @@ class ResNet12(nn.Module):
 
         # for attention
         # (5, 800) -> (5, 128)
-        out = self.fc(flatten_x)
+        out = self.layer_last(flatten_x)
 
         if fusion_method == "attention":
             # (5, 512) -> (5, 10, 512)
             att_flatten_x = self.image_conv1x1(flatten_x.unsqueeze(1))
-            out_att = self.fc(att_flatten_x)
+            out_att = self.layer_last(att_flatten_x)
             return out, out_att
         else:
             return out

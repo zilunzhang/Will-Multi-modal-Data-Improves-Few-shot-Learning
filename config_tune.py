@@ -21,14 +21,14 @@ def set_up_config(select_func=tune.grid_search):
 
             "model":
                 select_func([
-                    # 'ProtoNet',
-                    'MAML',
+                    'ProtoNet',
+                    # 'MAML',
                 ]),
             "emb_size":
                 select_func([
                     # 1600,
-                    128,
-                    # 800,
+                    # 128,
+                    800,
                 ]),
 
             "query_type":
