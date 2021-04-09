@@ -19,7 +19,7 @@ class SentenceEncoder(nn.Module):
         self.fc = nn.Linear(self.embedding_dimension, self.out_features)
         self.merge_tenshot_fc = nn.Conv1d(sentence_len, 1, 1)
 
-    def forward(self, x, id_sentence_mapping):
+    def forward(self, x, id_sentence_mapping, fusion_method):
         device = torch.device('cuda' if x.is_cuda else 'cpu')
         num_instance, num_sentence_per_instance = x.shape
         # x: (5, 10)
@@ -39,10 +39,13 @@ class SentenceEncoder(nn.Module):
         # x: (50, 800)
         x = self.fc(x)
         # x: (5, 10, 800)
-        x = torch.reshape(x, (num_instance, num_sentence_per_instance, -1))
-        # x: (5, 800)
-        out = self.merge_tenshot_fc(x).squeeze(1)
-        return out
+        out_att = torch.reshape(x, (num_instance, num_sentence_per_instance, -1))
+        # # x: (5, 800)
+        out = self.merge_tenshot_fc(out_att).squeeze(1)
+        if fusion_method == "attention":
+            return out, out_att
+        else:
+            return out
 
 
 def conv_block(in_channels, out_channels):
@@ -68,12 +71,25 @@ class ConvNet(nn.Module):
         )
         self.out_channels = 800
         self.fc = nn.Linear(self.out_channels, emb_size)
+        self.image_conv1x1 = nn.Conv1d(1, 10, 1)
 
-    def forward(self, x):
+    def forward(self, x, fusion_method):
         x = self.encoder(x)
+        # (5, 1, 32 * 5 * 5)
         flatten_x = x.view(x.size(0), -1)
+
+        # for attention
+        # (5, 1, 800) -> (5, 10, 800)
+        att_flatten_x = self.image_conv1x1(flatten_x.unsqueeze(1))
+
+        # (5, 1, 800) -> (5, 1, 128)
         out = self.fc(flatten_x)
-        return out
+
+        if fusion_method == "attention":
+            out_att = self.fc(att_flatten_x)
+            return out, out_att
+        else:
+            return out
     
 
 class ResNet12Block(nn.Module):

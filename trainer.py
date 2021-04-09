@@ -115,102 +115,83 @@ class FSLTrainer(pl.LightningModule):
                                                    batch_size=self.hparams['batch_size'],
                                                    num_workers=self.hparams['num_cpu'], pin_memory=True)
 
+        return self.test_dataloader
+
     def training_step(self, batch, batch_idx):
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
         train_loss, train_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx)
 
-        train_tensorboard_logs = {'training_loss': train_loss, 'training_accuracy': train_accuracy}
-        self.trainer.logger.log_metrics(train_tensorboard_logs, step=self.trainer.global_step)
-        pbar = {'train_acc': train_accuracy, 'train_loss': train_loss, 'lr': self.lr_scheduler.get_last_lr()}
-        return {'loss': train_loss,
-                'log': train_tensorboard_logs,
-                'progress_bar': pbar
-                }
+        train_result = pl.TrainResult(minimize=train_loss)
+        train_tensorboard_logs = {'train_loss': train_loss, 'train_acc': train_accuracy, 'lr': torch.tensor(self.lr_scheduler.get_last_lr()[0])}
+        train_result.log_dict(train_tensorboard_logs, prog_bar=True, logger=True, on_step=True)
+
+        return train_result
+
+    # def training_epoch_end(self, outs):
+    #
+    #     epoch_train_losses = outs["epoch_train_loss"].detach().cpu()
+    #     epoch_train_accuracy = outs['epoch_train_acc'].detach().cpu()
+    #     ave_loss = epoch_train_losses.mean()
+    #     ave_acc = epoch_train_accuracy.mean()
+    #     train_end_result = pl.TrainResult()
+    #     train_end_tensorboard_logs = {'train_acc_mean': ave_acc, 'train_loss_mean': ave_loss}
+    #     train_end_result.log_dict(train_end_tensorboard_logs, prog_bar=True, logger=True, on_step=True)
+    #     return train_end_result
 
     def validation_step(self, batch, batch_idx):
-        if self.hparams['model'] == "MAML":
-            torch.set_grad_enabled(True)
+        # torch.set_grad_enabled(True)
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
+        valid_loss, valid_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx)
+        val_result = pl.EvalResult()
+        valid_tensorboard_logs = {'val_loss': valid_loss, 'val_acc': valid_accuracy}
+        val_result.log_dict(valid_tensorboard_logs, prog_bar=True, logger=True, on_step=True)
 
-        valid_loss, valid_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx, False)
-
-        valid_tensorboard_logs = {'valid_loss': valid_loss, 'valid_accuracy': valid_accuracy}
-        self.trainer.logger.log_metrics(valid_tensorboard_logs, step=self.trainer.global_step)
-
-        pbar_val = {'val_acc': valid_accuracy, 'validation_loss': valid_loss, 'lr': self.lr_scheduler.get_last_lr()}
-
-        return {'loss': valid_loss,
-                'log': valid_tensorboard_logs,
-                'progress_bar': pbar_val
-                }
+        return val_result
 
     def validation_epoch_end(self, outs):
+        epoch_valid_losses = outs["epoch_val_loss"].detach().cpu()
+        epoch_valid_accuracy = outs['epoch_val_acc'].detach().cpu()
+        ave_loss = epoch_valid_losses.mean()
+        ave_acc = epoch_valid_accuracy.mean()
+        valid_end_tensorboard_logs = {'val_acc_mean': ave_acc, 'val_loss_mean': ave_loss}
+        val_end_result = pl.EvalResult(checkpoint_on=ave_acc)
+        val_end_result.log_dict(valid_end_tensorboard_logs, prog_bar=True, logger=True, on_step=True)
 
-        ave_loss = []
-        ave_acc = []
-
-        for validation in outs:
-            ave_loss.append(validation['log']['valid_loss'].detach().cpu().numpy())
-            ave_acc.append(validation['log']['valid_accuracy'].detach().cpu().numpy())
-        ave_loss = np.mean(np.array(ave_loss))
-        ave_acc = np.mean(np.array(ave_acc))
-
-        if ave_acc > self.best_val_acc:
-            self.best_val_acc = ave_acc
-
-        valid_tensorboard_logs = {'valid_accuracy_mean': ave_acc, 'valid_loss_mean': ave_loss}
-
-        results = {'log': valid_tensorboard_logs}
-
-        return results
+        return val_end_result
 
     def test_step(self, batch, batch_idx):
         # torch.set_grad_enabled(True)
-        if self.hparams['model'] == "MAML":
-            torch.set_grad_enabled(True)
+
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
 
         if self.hparams["num_gpu"] != 0:
             support_data, query_data, support_labels, query_labels = support_data.to("cuda"), query_data.to(
                 "cuda"), support_labels.to("cuda"), query_labels.to("cuda")
+        test_loss, test_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx)
 
-        test_loss, test_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx, False)
+        test_result = pl.EvalResult()
+        test_tensorboard_logs = {'test_loss': test_loss, 'test_acc': test_accuracy}
+        test_result.log_dict(test_tensorboard_logs, prog_bar=True, logger=True, on_step=True)
 
-        test_tensorboard_logs = {'test_loss': test_loss, 'test_accuracy': test_accuracy}
-        self.trainer.logger.log_metrics(test_tensorboard_logs, step=self.trainer.global_step)
-
-        pbar_test = {'test_acc': test_accuracy, 'test_loss': test_loss, 'lr': self.lr_scheduler.get_last_lr()}
-
-        return {'loss': test_loss,
-                'log': test_tensorboard_logs,
-                'progress_bar': pbar_test
-                }
+        return test_result
 
     def test_epoch_end(self, outs):
-        ave_loss = []
-        ave_acc = []
-        for test in outs:
-            ave_loss.append(test['log']['test_loss'].detach().cpu().numpy())
-            ave_acc.append(test['log']['test_accuracy'].detach().cpu().numpy())
-        ave_loss = np.mean(np.array(ave_loss))
-        std_acc = np.std(np.array(ave_acc))
-        ave_acc = np.mean(np.array(ave_acc))
 
-        if ave_acc > self.best_test_acc:
-            self.best_test_acc = ave_acc
+        epoch_test_losses = outs["epoch_test_loss"].detach().cpu().numpy()
+        epoch_test_accuracy = outs['epoch_test_acc'].detach().cpu().numpy()
+        ave_loss = epoch_test_losses.mean()
+        ave_acc = epoch_test_accuracy.mean()
+        std_acc = epoch_test_accuracy.std()
 
-        print('test acc: {}'.format(ave_acc))
+        test_end_result = pl.EvalResult()
+        test_end_tensorboard_logs = {'test_acc_mean': ave_acc, 'test_acc_std': std_acc, 'test_loss_mean': ave_loss}
+        test_end_result.log_dict(test_end_tensorboard_logs, prog_bar=True, logger=True, on_step=True)
+        return test_end_result
 
-        test_tensorboard_logs = {'test_accuracy_mean': ave_acc, 'test_accuracy_std': std_acc,
-                                 'test_loss_mean': ave_loss}
-
-        results = {'log': test_tensorboard_logs}
-        return results
-
-    def forward(self, support_image_data, query_image_data, support_test_text, query_text_data, support_labels, query_labels, index, is_train=True):
+    def forward(self, support_image_data, query_image_data, support_test_text, query_text_data, support_labels, query_labels, index):
 
         # (1, 80, 3, 84, 84)
         # support_data, query_data, support_labels, query_labels = original_support_data, original_query_data, original_support_labels, original_query_labels
@@ -218,20 +199,16 @@ class FSLTrainer(pl.LightningModule):
         # img_vis(self.hpparams['num_way'], support_data, query_data, index)
 
         # (bs, num_way * num_shot, emb_size)
-        support_image_feature = backbone_two_stage_initialization(support_image_data, self.image_backbone)
+        support_image_feature = backbone_two_stage_initialization(support_image_data, self.image_backbone, self.hparams["fusion_method"])
         # (bs, num_way * num_query, emb_size)
-        query_image_feature = backbone_two_stage_initialization(query_image_data, self.image_backbone)
+        query_image_feature = backbone_two_stage_initialization(query_image_data, self.image_backbone, self.hparams["fusion_method"])
 
         # (bs, num_way * num_shot, emb_size)
-        support_text_feature = backbone_sentence_embedding(support_test_text, self.text_backbone, self.id_to_sentence)
+        support_text_feature = backbone_sentence_embedding(support_test_text, self.text_backbone, self.id_to_sentence, self.hparams["fusion_method"])
         # (bs, num_way * num_query, emb_size)
-        query_text_feature = backbone_sentence_embedding(query_text_data, self.text_backbone, self.id_to_sentence)
+        query_text_feature = backbone_sentence_embedding(query_text_data, self.text_backbone, self.id_to_sentence, self.hparams["fusion_method"])
+        accuracy, loss = self.model([support_image_feature, query_image_feature, support_text_feature, query_text_feature], support_labels, query_labels, self.hparams["fusion_method"])
 
-        if self.hparams["model"] == "MAML":
-            accuracy, ce_loss = self.model([support_image_data, query_image_data, support_text_feature, query_text_feature], support_labels, query_labels, self.hparams["fusion_method"], is_train)
-        else:
-            accuracy, ce_loss = self.model([support_image_feature, query_image_feature, support_text_feature, query_text_feature], support_labels, query_labels, self.hparams["fusion_method"])
-        loss = ce_loss
         return loss, accuracy
 
     def configure_optimizers(self):

@@ -36,12 +36,14 @@ def imagenet_transform(stage):
                         contrast=.1,
                         saturation=.1,
                         hue=.1),
+            # lambda x: np.asarray(x),
             ToTensor(),
             normalize
         ]
         )
     else:  # 'val' or 'test' ,
         transform = Compose([
+            # lambda x: np.asarray(x),
             ToTensor(),
             normalize
         ]
@@ -57,43 +59,7 @@ def imagenet_transform(stage):
     return transform
 
 
-def backbone_two_stage_initialization(full_data, encoder):
-    """
-    encode raw data by backbone network
-    :param full_data: raw data
-    :param encoder: backbone network
-    :return: last layer logits from backbone network
-             second last layer logits from backbone network
-    """
-    # encode data
-    last_layer_data_temp = []
-    second_last_layer_data_temp = []
-    last_layer_feature_map_temp = []
-    # for data in full_data.chunk(full_data.size(1), dim=1):
-    #    # the encode step
-    #    encoded_result = encoder(data.squeeze(1))
-    #    # prepare for two stage initialization of DPGN
-    #    last_layer_data_temp.append(encoded_result[0])
-    #    second_last_layer_data_temp.append(encoded_result[1])
-    for data in full_data:
-        encoded_result = encoder(data)
-        # import pdb
-        # if isinstance(encoded_result, tuple):
-        #    pdb.set_trace()
-        last_layer_data_temp.append(encoded_result)
-        second_last_layer_data_temp.append(encoded_result)
-        last_layer_feature_map_temp.append(encoded_result)
-
-    # last_layer_data: (batch_size, num_samples, embedding dimension)
-    last_layer_data = torch.stack(last_layer_data_temp, dim=0)
-    # second_last_layer_data: (batch_size, num_samples, embedding dimension)
-    second_last_layer_data = torch.stack(second_last_layer_data_temp, dim=0)
-    last_layer_feature_map = torch.stack(last_layer_feature_map_temp, dim=0)
-
-    return last_layer_data
-
-
-def backbone_sentence_embedding(full_data, encoder, id_to_sentence):
+def backbone_two_stage_initialization(full_data, encoder, fusion_medthd):
     """
     encode raw data by backbone network
     :param full_data: raw data
@@ -102,21 +68,65 @@ def backbone_sentence_embedding(full_data, encoder, id_to_sentence):
              second last layer logits from backbone network
     """
 
-    # encode data
-    last_layer_data_temp = []
+    if fusion_medthd != "attention":
+        # encode data
+        last_layer_data_temp = []
+        for data in full_data:
+            encoded_result = encoder(data, fusion_medthd)
+            last_layer_data_temp.append(encoded_result)
+        # last_layer_data: (batch_size, num_samples, embedding dimension)
+        last_layer_data = torch.stack(last_layer_data_temp, dim=0)
+        return last_layer_data
 
-    for data in full_data:
+    else:
+        # encode data
+        last_layer_data_temp = []
+        last_layer_data_temp_att = []
 
-        # (5, 800)
-        encoded_result = encoder(data, id_to_sentence)
+        for data in full_data:
+            encoded_result = encoder(data, fusion_medthd)
+            last_layer_data_temp.append(encoded_result[0])
+            last_layer_data_temp_att.append(encoded_result[1])
+        # last_layer_data: (batch_size, num_samples, embedding dimension)
+        last_layer_data = torch.stack(last_layer_data_temp, dim=0)
+        last_layer_data_att = torch.stack(last_layer_data_temp_att, dim=0)
+        return last_layer_data, last_layer_data_att
 
-        last_layer_data_temp.append(encoded_result)
 
-    # last_layer_data: (batch_size, num_samples, embedding dimension)
-    last_layer_data = torch.stack(last_layer_data_temp, dim=0)
+def backbone_sentence_embedding(full_data, encoder, id_to_sentence, fusion_method):
+    """
+    encode raw data by backbone network
+    :param full_data: raw data
+    :param encoder: backbone network
+    :return: last layer logits from backbone network
+             second last layer logits from backbone network
+    """
+    if fusion_method != "attention":
+        # encode data
+        last_layer_data_temp = []
 
-    # print("last_layer_data shape: {}".format(last_layer_data.shape))
-    return last_layer_data
+        for data in full_data:
+            # (5, 800)
+            encoded_result = encoder(data, id_to_sentence, fusion_method)
+            last_layer_data_temp.append(encoded_result)
+
+        # last_layer_data: (batch_size, num_samples, embedding dimension)
+        last_layer_data = torch.stack(last_layer_data_temp, dim=0)
+        return last_layer_data
+
+    else:
+        # encode data
+        last_layer_data_temp = []
+        last_layer_data_temp_att = []
+        for data in full_data:
+            # (5, 800)
+            encoded_result = encoder(data, id_to_sentence, fusion_method)
+            last_layer_data_temp.append(encoded_result[0])
+            last_layer_data_temp_att.append(encoded_result[1])
+        # last_layer_data: (batch_size, num_samples, embedding dimension)
+        last_layer_data = torch.stack(last_layer_data_temp, dim=0)
+        last_layer_data_att = torch.stack(last_layer_data_temp_att, dim=0)
+        return last_layer_data, last_layer_data_att
 
 
 def img_vis(way_num, support_data, query_data, index, save_dir="./vis"):
@@ -260,22 +270,3 @@ def trial_name_string(trial):
     str += "_{}-{}".format("lr_schedule_gamma", param_dict["lr_schedule_gamma"])
     str += "_{}-{}".format("lr_schedule_step_size", param_dict["lr_schedule_step_size"])
     return str
-
-
-def get_accuracy_maml(logits, targets):
-    """Compute the accuracy (after adaptation) of MAML on the test/query points
-    Parameters
-    ----------
-    logits : `torch.FloatTensor` instance
-        Outputs/logits of the model on the query points. This tensor has shape
-        `(num_examples, num_classes)`.
-    targets : `torch.LongTensor` instance
-        A tensor containing the targets of the query points. This tensor has
-        shape `(num_examples,)`.
-    Returns
-    -------
-    accuracy : `torch.FloatTensor` instance
-        Mean accuracy on the query points
-    """
-    _, predictions = torch.max(logits, dim=-1)
-    return torch.mean(predictions.eq(targets).float())

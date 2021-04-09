@@ -59,13 +59,6 @@ def run(config):
 
     console = Console()
     console.log(exp_name)
-    early_stop_callback = EarlyStopping(
-        monitor='valid_accuracy_mean',
-        min_delta=0.00000,
-        patience=50,
-        verbose=True,
-        mode='max'
-    )
 
     # save_root_dir = './{}'.format(config['exp_dir'])
     # os.makedirs(save_root_dir, exist_ok=True)
@@ -76,13 +69,20 @@ def run(config):
     #                            offline=True
     #                            )
 
-    # checkpoint_callback = ModelCheckpoint(
-    #     dirpath=os.path.join(config['exp_dir'], "checkpoints"),
-    #     filename=os.path.join(exp_name, '-{epoch:02d}-{val_acc:.2f}'),
-    #     monitor='val_acc',
-    #     save_top_k=1,
-    #     mode='max',
-    # )
+    checkpoint_callback = ModelCheckpoint(
+        filepath=os.path.join("saves", exp_name, "checkpoints"),
+        monitor='fix',
+        save_top_k=1,
+        mode='max',
+        save_last=True,
+    )
+
+    early_stop_callback = EarlyStopping(
+        monitor="fix",
+        min_delta=0.0000,
+        patience=10,
+        mode='max'
+    )
 
     if config['num_epoch'] > 10:
         check_val_every_n_epoch = config['num_epoch'] // 10
@@ -90,8 +90,9 @@ def run(config):
         check_val_every_n_epoch = 1
 
     trainer = pl.Trainer(
+        default_root_dir=os.path.join("saves", exp_name),
         # early_stop_callback=early_stop_callback,
-        # callbacks=[checkpoint_callback],
+        checkpoint_callback=checkpoint_callback,
         # fast_dev_run=True,
         deterministic=True,
         num_sanity_val_steps=0,
@@ -99,7 +100,7 @@ def run(config):
         # logger=wandb_logger,
         gpus=config['num_gpu'],
         progress_bar_refresh_rate=1,
-        # log_save_interval=1,
+        log_save_interval=1,
         limit_train_batches=config['train_size'],
         limit_val_batches=config['validation_size'],
         limit_test_batches=config['test_size'],
@@ -115,12 +116,10 @@ def run(config):
         fsl_trainer = FSLTrainer(config)
 
     trainer.fit(fsl_trainer)
-    test_result = trainer.test()
 
-    # if type(test_result) == list:
-    #     test_result = test_result[0]["test_accuracy_mean"]
-    # elif type(test_result) == dict:
-    #     test_result = test_result["test_accuracy_mean"]
+    print("best ckpt file path: {}, best ckpt accuracy: {}".format(checkpoint_callback.best_model_path, checkpoint_callback.best_model_score))
+
+    test_result = trainer.test()
 
     print('trail：{}'.format(exp_name))
     print(test_result)
@@ -151,11 +150,11 @@ def main():
                         help='number of batch for test')
     parser.add_argument('--num_epoch', type=int, default=100,
                         help='number of epoch')
-    parser.add_argument('--batch_size', type=int, default=10,
+    parser.add_argument('--batch_size', type=int, default=20,
                         help='number of episode per batch')
     parser.add_argument('--select_func', type=str, default='grid',
                         help='function for selecting hp')
-    parser.add_argument('--fusion_method', type=str, default='mean',
+    parser.add_argument('--fusion_method', type=str, default='attention',
                         help='fusion method to text and image data')
     parser.add_argument('--ckpt', type=str,
                         # default='result_files_additive_50epoch/FSL-MULTIMODAL/checkpoints/epoch_49.ckpt',
