@@ -74,17 +74,16 @@ class ConvNet(nn.Module):
 
     def forward(self, x, fusion_method):
         x = self.encoder(x)
-        # (5, 1, 32 * 5 * 5)
+        # (5, 32 * 5 * 5)
         flatten_x = x.view(x.size(0), -1)
 
-        # for attention
-        # (5, 1, 800) -> (5, 10, 800)
-        att_flatten_x = self.image_conv1x1(flatten_x.unsqueeze(1))
-
-        # (5, 1, 800) -> (5, 1, 128)
+        # (5, 800) -> (5, 128)
         out = self.fc(flatten_x)
 
         if fusion_method == "attention":
+            # for attention
+            # (5, 800) -> (5, 10, 800)
+            att_flatten_x = self.image_conv1x1(flatten_x.unsqueeze(1))
             out_att = self.fc(att_flatten_x)
             return out, out_att
         else:
@@ -170,12 +169,14 @@ class ResNet12(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
+        self.image_conv1x1 = nn.Conv1d(1, 10, 1)
+
     def _make_layer(self, block, inplanes, planes):
         layers = []
         layers.append(block(inplanes, planes))
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x, fusion_method):
         # 3 -> 64
         x = self.conv1(x)
         x = self.bn1(x)
@@ -189,10 +190,20 @@ class ResNet12(nn.Module):
         # 256 -> 512
         x = self.layer4(inter)
         x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        # 512 -> 128
-        x = self.layer_last(x)
-        return x
+        flatten_x = x.view(x.size(0), -1)
+
+        # for attention
+        # (5, 800) -> (5, 128)
+        out = self.fc(flatten_x)
+
+        if fusion_method == "attention":
+            # (5, 512) -> (5, 10, 512)
+            att_flatten_x = self.image_conv1x1(flatten_x.unsqueeze(1))
+            out_att = self.fc(att_flatten_x)
+            return out, out_att
+        else:
+            return out
+
 
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
