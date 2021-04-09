@@ -50,7 +50,7 @@ class ProtoNet(nn.Module):
             exit()
         return support_feature, query_feature
 
-    def forward(self, backbone_output, support_labels, query_labels, fusion_method):
+    def forward(self, backbone_output, support_labels, query_labels, fusion_method, is_train):
 
         # support_image_feature: (bs, num_way * num_shot, emb_size)
         # query_image_feature: (bs, num_way * num_query, emb_size)
