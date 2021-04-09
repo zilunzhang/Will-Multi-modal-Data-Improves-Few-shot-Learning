@@ -140,7 +140,8 @@ class FSLTrainer(pl.LightningModule):
     #     return train_end_result
 
     def validation_step(self, batch, batch_idx):
-        # torch.set_grad_enabled(True)
+        if self.hparams['model'] == "MAML":
+            torch.set_grad_enabled(True)
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
         valid_loss, valid_accuracy = self.forward(support_data, query_data, support_text, query_text, support_labels, query_labels, batch_idx, False)
@@ -162,8 +163,8 @@ class FSLTrainer(pl.LightningModule):
         return val_end_result
 
     def test_step(self, batch, batch_idx):
-        # torch.set_grad_enabled(True)
-
+        if self.hparams['model'] == "MAML":
+            torch.set_grad_enabled(True)
         support_data, support_text, support_labels = batch["train"]
         query_data, query_text, query_labels = batch["test"]
 
@@ -221,7 +222,6 @@ class FSLTrainer(pl.LightningModule):
 
     def configure_optimizers(self):
         # set optimizer
-
         param_list = list(self.image_backbone.parameters()) + list(self.text_backbone.parameters()) + list(self.model.parameters())
 
         # default optimizer
