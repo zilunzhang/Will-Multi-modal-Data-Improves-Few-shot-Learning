@@ -394,7 +394,7 @@ class MAML(nn.Module):
                 self.feature_extractor.zero_grad()
                 params = gradient_update_parameters(self.feature_extractor,
                                                     inner_loss,
-                                                    step_size=1,
+                                                    # step_size=1,
                                                     first_order=False)
                 query_image_feature_i = self.feature_extractor(query_image_data[i], fusion_method, params=params)
                 query_text_feature_i = query_text_feature[i]
@@ -443,7 +443,7 @@ class MAML(nn.Module):
                 self.feature_extractor.zero_grad()
                 params = gradient_update_parameters(self.feature_extractor,
                                                     inner_loss,
-                                                    step_size=5,
+                                                    # step_size=1,
                                                     first_order=False)
 
                 query_image_feature_i, query_image_feature_att_i = self.feature_extractor(query_image_data[i], fusion_method, params)
