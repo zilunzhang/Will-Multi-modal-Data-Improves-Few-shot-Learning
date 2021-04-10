@@ -50,10 +50,10 @@ class FSLTrainer(pl.LightningModule):
         with open(os.path.join(self.hparams["dataset_root"], "data.pkl"), "rb") as f:
             self.sampling_policy = pkl.load(f)
             f.close()
-        with open(os.path.join("pkl", "id_sentence_encoder.pkl"), "rb") as f:
+        with open(os.path.join(self.hparams["dataset_root"], "id_sentence_encoder.pkl"), "rb") as f:
             self.id_to_sentence = pkl.load(f)
             f.close()
-        with open(os.path.join("pkl", "sentence_id_encoder.pkl"), "rb") as f:
+        with open(os.path.join(self.hparams["dataset_root"], "sentence_id_encoder.pkl"), "rb") as f:
             self.sentence_to_id = pkl.load(f)
             f.close()
 
@@ -186,9 +186,9 @@ class FSLTrainer(pl.LightningModule):
         ave_loss = epoch_test_losses.mean()
         ave_acc = epoch_test_accuracy.mean()
         std_acc = epoch_test_accuracy.std()
-
+        ci = 1.96 * np.array(epoch_test_accuracy).std() / np.sqrt(float(len(epoch_test_accuracy)))
         test_end_result = pl.EvalResult()
-        test_end_tensorboard_logs = {'test_acc_mean': ave_acc, 'test_acc_std': std_acc, 'test_loss_mean': ave_loss}
+        test_end_tensorboard_logs = {'test_acc_mean': ave_acc, 'test_acc_std': std_acc, 'test_loss_mean': ave_loss, 'ci': ci}
         test_end_result.log_dict(test_end_tensorboard_logs, prog_bar=True, logger=True, on_step=True)
         return test_end_result
 

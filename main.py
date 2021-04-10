@@ -133,19 +133,19 @@ def main():
                         help='number of budgets')
     parser.add_argument('--num_gpu', type=int, default=1,
                         help='number of gpu per trail')
-    parser.add_argument('--num_cpu', type=int, default=0,
+    parser.add_argument('--num_cpu', type=int, default=8,
                         help='number of cpu per trail')
     parser.add_argument('--exp_dir', type=str,
                         default='result_files',
                         help='experiment name')
     parser.add_argument('--dataset_root', type=str,
-                        default='pkl',
+                        default='../pkl',
                         help='dataset root')
     parser.add_argument('--train_size', type=int, default=100,
                         help='number of batch for train')
     parser.add_argument('--validation_size', type=int, default=100,
                         help='number of batch for validation')
-    parser.add_argument('--test_size', type=int, default=500,
+    parser.add_argument('--test_size', type=int, default=600,
                         help='number of batch for test')
     parser.add_argument('--num_epoch', type=int, default=500,
                         help='number of epoch')
