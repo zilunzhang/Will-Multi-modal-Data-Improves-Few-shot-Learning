@@ -459,7 +459,7 @@ class MAML(nn.Module):
                 outer_loss += F.cross_entropy(query_feature_i, query_labels[i])
 
                 with torch.no_grad():
-                    accuracy += get_accuracy_maml(query_image_feature_i, query_labels[i])
+                    accuracy += get_accuracy_maml(query_feature_i, query_labels[i])
                 i += 1
 
             outer_loss.div_(bs)

@@ -93,7 +93,7 @@ def run(config):
         default_root_dir=os.path.join("saves", exp_name),
         # early_stop_callback=early_stop_callback,
         checkpoint_callback=checkpoint_callback,
-        # fast_dev_run=True,
+        fast_dev_run=True,
         deterministic=True,
         num_sanity_val_steps=0,
         max_epochs=config['num_epoch'],
