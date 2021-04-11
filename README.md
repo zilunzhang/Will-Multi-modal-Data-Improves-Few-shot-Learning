@@ -27,15 +27,20 @@ The main dataset is directly from links on the left, the text data and dataset s
 |    Dataset    | Original Split + Multimodal Version Text Data | Multimodal data in PKL format|
 | :-----------: |:----------------:|:----------------:|
 |  [Cub_200_2011](http://www.vision.caltech.edu/visipedia/CUB-200-2011.html)  |  [Learning Deep Representations of Fine-grained Visual Descriptions](https://github.com/reedscot/cvpr2016)  | [Google Drive](https://drive.google.com/drive/folders/1w_SKTPg455q_2zdQjyg0rm31tikvaucL?usp=sharing)
+| [vgg_102_flowers](https://www.robots.ox.ac.uk/~vgg/data/flowers/102/) | [Learning Deep Representations of Fine-grained Visual Descriptions](https://github.com/reedscot/cvpr2016) | [Google Drive]()
 
-
-The dataset directory should look like this:
+The dataset directory should look like this (example of cub_200_2011):
 ```bash
-├── pkl
+├── pkl_cub_200_2011
     ├── data.pkl
     ├── id_sentence_encoder.pkl
     ├── sentence_id_encoder.pkl
-
+    
+├── csc2541_project
+    ├── main.py
+    ├── trainer.py
+    ├── models.py
+    |── ......
 ```
 
 ## Training
@@ -43,7 +48,7 @@ The dataset directory should look like this:
 To train the model(s) in the paper, run:
 
 ```train
-python3 main.py --num_cpu 16 --num_gpu 1 --dataset_root pkl --task_file config.yaml --batch_size 30 --num_epoch 100
+python3 main.py --num_cpu 8 --num_gpu 1 --dataset_root ../pkl_cub_200_2011 --task_file config.yaml --num_epoch 100 --fusion_method fc
 ```
 
 
@@ -52,13 +57,13 @@ python3 main.py --num_cpu 16 --num_gpu 1 --dataset_root pkl --task_file config.y
 To evaluate the model(s) in the paper, run:
 
 ```eval
-python3 inference.py --num_cpu 16 --num_gpu 1 --task_file config.yaml --ckpt_file xxx.ckpt
+python3 inference.py --num_cpu 8 --num_gpu 1 --test_size 600 --dataset_root ../pkl_cub_200_2011 --task_file config.yaml --ckpt_file xxx.ckpt
 ```
 
 ## Results
 ```bash
 # Default checkpoints directory is:
-./result_files
+./saves
 ```
 
 
