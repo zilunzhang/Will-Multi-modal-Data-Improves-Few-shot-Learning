@@ -24,7 +24,8 @@ class FSLTrainer(pl.LightningModule):
         self.best_val_acc = 0
         self.best_test_acc = 0
         self.image_backbone = self.create_backbone(hpparams['emb_size'])
-        self.text_backbone = SentenceEncoder(hpparams['emb_size'])
+        use_cuda = True if self.hparams['num_gpu'] > 0 else False
+        self.text_backbone = SentenceEncoder(hpparams['emb_size'], use_cuda)
         self.model = eval(hpparams['model'])(num_way=hpparams['num_way'], num_shot=hpparams['num_shot'],
                                              num_query=hpparams['num_query'], emb_size=hpparams['emb_size'])
 

@@ -6,9 +6,9 @@ from sentence_transformers import SentenceTransformer, models
 
 
 class SentenceEncoder(nn.Module):
-    def __init__(self, emb_size, sentence_len=10):
+    def __init__(self, emb_size, use_cuda, sentence_len=10):
         super().__init__()
-        device = 'cuda' if torch.has_cuda else 'cpu'
+        device = 'cuda' if use_cuda else 'cpu'
 
         self.encoder = SentenceTransformer('distilbert-base-uncased', device=device)
         for param in self.encoder.parameters():

@@ -131,15 +131,15 @@ def main():
                         help='path of task file')
     parser.add_argument('--budgets', type=int, default=1,
                         help='number of budgets')
-    parser.add_argument('--num_gpu', type=int, default=1,
+    parser.add_argument('--num_gpu', type=int, default=0,
                         help='number of gpu per trail')
-    parser.add_argument('--num_cpu', type=int, default=8,
+    parser.add_argument('--num_cpu', type=int, default=0,
                         help='number of cpu per trail')
     parser.add_argument('--exp_dir', type=str,
                         default='result_files',
                         help='experiment name')
     parser.add_argument('--dataset_root', type=str,
-                        default='../pkl',
+                        default='../pkl_dataset',
                         help='dataset root')
     parser.add_argument('--train_size', type=int, default=100,
                         help='number of batch for train')
@@ -153,7 +153,7 @@ def main():
                         help='number of episode per batch')
     parser.add_argument('--select_func', type=str, default='grid',
                         help='function for selecting hp')
-    parser.add_argument('--fusion_method', type=str, default='attention',
+    parser.add_argument('--fusion_method', type=str, default='mean',
                         help='fusion method to text and image data')
     parser.add_argument('--ckpt', type=str,
                         # default='result_files_additive_50epoch/FSL-MULTIMODAL/checkpoints/epoch_49.ckpt',
