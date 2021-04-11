@@ -27,8 +27,8 @@ def set_up_config(select_func=tune.grid_search):
             "emb_size":
                 select_func([
                     # 1600,
-                    # 128,
-                    800,
+                    128,
+                    # 800,
                 ]),
 
             "query_type":
@@ -42,7 +42,7 @@ def set_up_config(select_func=tune.grid_search):
                 ]),
             "weight_decay":
                 select_func([
-                    1e-3,
+                    1e-5,
                 ]),
             "lr_schedule_step_size":
                 select_func([
@@ -52,9 +52,9 @@ def set_up_config(select_func=tune.grid_search):
                 ]),
             "lr_schedule_gamma":
                 select_func([
-                    0.5,
+                    # 0.5,
                     # 0.3,
-                    # 0.7,
+                    0.7,
                     # 0.9,
                 ]),
         }

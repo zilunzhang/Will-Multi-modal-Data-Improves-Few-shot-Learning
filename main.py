@@ -131,9 +131,9 @@ def main():
                         help='path of task file')
     parser.add_argument('--budgets', type=int, default=1,
                         help='number of budgets')
-    parser.add_argument('--num_gpu', type=int, default=0,
+    parser.add_argument('--num_gpu', type=int, default=1,
                         help='number of gpu per trail')
-    parser.add_argument('--num_cpu', type=int, default=0,
+    parser.add_argument('--num_cpu', type=int, default=8,
                         help='number of cpu per trail')
     parser.add_argument('--exp_dir', type=str,
                         default='result_files',
