@@ -30,8 +30,10 @@ class FSLTrainer(pl.LightningModule):
                                              num_query=hpparams['num_query'], emb_size=hpparams['emb_size'])
 
     def set_config(self, config):
-        self.hparams = config
+        self.hparams['num_cpu'] = config['num_cpu']
+        self.hparams["dataset_root"] = config["dataset_root"]
         print("num_worker: {}".format(self.hparams['num_cpu']))
+        self.hparams["lr"] = config['lr']
 
     def create_backbone(self, emb_size):
         if self.hparams['backbone'].startswith('timm'):

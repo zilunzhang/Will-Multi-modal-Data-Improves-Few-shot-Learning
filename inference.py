@@ -27,11 +27,11 @@ def inference(config):
             limit_test_batches=config['test_size'],
             checkpoint_callback=checkpoint_callback
     )
-
+    print("ckpt file: {}".format(config["ckpt_file"]))
     fsl_trainer = FSLTrainer.load_from_checkpoint(config['ckpt_file'])
     print("fsl trainer loaded")
     fsl_trainer = fsl_trainer.to("cuda")
-
+    fsl_trainer.hparams["dataset_root"] = config["dataset_root"]
     test_dataset = custom_dataset(
         sampling_policy=config["data"],
         id_to_sentence=config['id_to_sentence'],
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--task_file', type=str, default="config.yaml",
                         help='path of task file')
-    parser.add_argument('--ckpt_file', type=str, default=None,
+    parser.add_argument('--ckpt_file', type=str, default="multimodal_best_weights/_ckpt_epoch_489.ckpt",
                                     help='path of ckpt file')
     parser.add_argument('--test_size', type=str, default=600)
     parser.add_argument('--num_gpu', type=int, default=1,
@@ -84,7 +84,6 @@ if __name__ == '__main__':
     config["ckpt_file"] = args.ckpt_file
     config["batch_size"] = args.batch_size
     config["test_size"] = args.test_size
-
     with open(os.path.join(config["dataset_root"], "data.pkl"), "rb") as f:
         data = pkl.load(f)
         f.close()
@@ -102,7 +101,4 @@ if __name__ == '__main__':
 
     test_result = inference(config)
     print(test_result)
-    # test_acc_mean = test_result["test_accuracy_mean"]
-    # test_acc_std = test_result["test_accuracy_std"]
-    # print("{0} test episode, test accuracy: {1:.2g}\u00B1{2:.2g} ".format(args.test_size, test_acc_mean, test_acc_std ))
 

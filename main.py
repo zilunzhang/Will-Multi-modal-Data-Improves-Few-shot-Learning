@@ -147,7 +147,7 @@ def main():
                         help='number of batch for validation')
     parser.add_argument('--test_size', type=int, default=600,
                         help='number of batch for test')
-    parser.add_argument('--num_epoch', type=int, default=500,
+    parser.add_argument('--num_epoch', type=int, default=100,
                         help='number of epoch')
     parser.add_argument('--batch_size', type=int, default=1,
                         help='number of episode per batch')
@@ -156,8 +156,8 @@ def main():
     parser.add_argument('--fusion_method', type=str, default='mean',
                         help='fusion method to text and image data')
     parser.add_argument('--ckpt', type=str,
-                        # default='result_files_additive_50epoch/FSL-MULTIMODAL/checkpoints/epoch_49.ckpt',
-                        default=None,
+                        default='multimodal_best_weights/_ckpt_epoch_489.ckpt',
+                        # default=None,
                         help='function for selecting hp')
     args = parser.parse_args()
     print('budget, cpu, gpu: {}, {}, {}'.format(args.budgets, args.num_cpu, args.num_gpu))
