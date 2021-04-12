@@ -58,14 +58,14 @@ if __name__ == '__main__':
                         help='path of task file')
     parser.add_argument('--ckpt_file', type=str, default=None,
                                     help='path of ckpt file')
-    parser.add_argument('--test_size', type=str, default=100)
+    parser.add_argument('--test_size', type=str, default=600)
     parser.add_argument('--num_gpu', type=int, default=1,
                         help='number of gpu per trail')
     parser.add_argument('--num_cpu', type=int, default=16,
                         help='number of cpu per trail')
     parser.add_argument('--dataset_root', type=str,
-                        default='pkl', help='dataset root')
-    parser.add_argument('--batch_size', type=int, default=2,
+                        default='../pkl_dataset', help='dataset root')
+    parser.add_argument('--batch_size', type=int, default=1,
                         help='number of episode per batch')
 
     args = parser.parse_args()
@@ -88,11 +88,11 @@ if __name__ == '__main__':
     with open(os.path.join(config["dataset_root"], "data.pkl"), "rb") as f:
         data = pkl.load(f)
         f.close()
-    with open(os.path.join("pkl", "id_sentence_encoder.pkl"), "rb") as f:
+    with open(os.path.join(config["dataset_root"], "id_sentence_encoder.pkl"), "rb") as f:
         id_to_sentence = pkl.load(f)
         print()
         f.close()
-    with open(os.path.join("pkl", "sentence_id_encoder.pkl"), "rb") as f:
+    with open(os.path.join(config["dataset_root"], "sentence_id_encoder.pkl"), "rb") as f:
         sentence_to_id = pkl.load(f)
         print()
         f.close()
