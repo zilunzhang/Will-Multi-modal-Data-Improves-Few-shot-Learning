@@ -85,18 +85,18 @@ python3 inference.py --num_cpu 8 --num_gpu 1 --test_size 600 --dataset_root ../p
 |ID|Backbone|Model|Modality|Fusion Method|Accuracy|
 |:---:|:---:|:---:|:---:|:---:|:---:|
 |0|[4-Conv](https://arxiv.org/abs/1605.05395)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image|-|46.99|
-|5|[4-Conv](https://arxiv.org/abs/1605.05395)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|Mean|TODO|
-|6|[4-Conv](https://arxiv.org/abs/1605.05395)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|FC|TODO|
-|7|[4-Conv](https://arxiv.org/abs/1605.05395)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|Attention (image guided)|TODO|
-|8|[4-Conv](https://arxiv.org/abs/1605.05395)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|Attention (text residual)|TODO|
+|5|[4-Conv](https://arxiv.org/abs/1605.05395)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|Mean|75.52|
+|6|[4-Conv](https://arxiv.org/abs/1605.05395)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|FC|73.41|
+|7|[4-Conv](https://arxiv.org/abs/1605.05395)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|Attention (text guided)|78.40|
+|8|[4-Conv](https://arxiv.org/abs/1605.05395)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|Attention (text residual)|63.6|
 |3|[ResNet12](https://github.com/kjunelee/MetaOptNet)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image|-|53.65|
-|9|[ResNet12](https://github.com/kjunelee/MetaOptNet)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|Mean|TODO|
-|10|[ResNet12](https://github.com/kjunelee/MetaOptNet)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|FC|TODO|
-|11|[ResNet12](https://github.com/kjunelee/MetaOptNet)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|Attention (image guided)|TODO|
-|12|[ResNet12](https://github.com/kjunelee/MetaOptNet)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|Attention (text residual)|TODO|
+|9|[ResNet12](https://github.com/kjunelee/MetaOptNet)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|Mean|76.87|
+|10|[ResNet12](https://github.com/kjunelee/MetaOptNet)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|FC|75.63|
+|11|[ResNet12](https://github.com/kjunelee/MetaOptNet)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|Attention (text guided)|77.98|
+|12|[ResNet12](https://github.com/kjunelee/MetaOptNet)|[ProtoNet](https://arxiv.org/abs/1703.05175)|Image + Text|Attention (text residual)|67.08|
 |2|[4-Conv](https://arxiv.org/abs/1605.05395)|[MAML](https://arxiv.org/abs/1703.03400)|Image|-|49.75|
-|13|[4-Conv](https://arxiv.org/abs/1605.05395)|[MAML](https://arxiv.org/abs/1703.03400)|Image + Text|Mean|TODO|
-|14|[4-Conv](https://arxiv.org/abs/1605.05395)|[MAML](https://arxiv.org/abs/1703.03400)|Image + Text|FC|TODO|
-|15|[4-Conv](https://arxiv.org/abs/1605.05395)|[MAML](https://arxiv.org/abs/1703.03400)|Image + Text|Attention (image guided)|TODO|
-|16|[4-Conv](https://arxiv.org/abs/1605.05395)|[MAML](https://arxiv.org/abs/1703.03400)|Image + Text|Attention (text residual)|TODO|
+|13|[4-Conv](https://arxiv.org/abs/1605.05395)|[MAML](https://arxiv.org/abs/1703.03400)|Image + Text|Mean|51.10|
+|14|[4-Conv](https://arxiv.org/abs/1605.05395)|[MAML](https://arxiv.org/abs/1703.03400)|Image + Text|FC|53.97|
+|15|[4-Conv](https://arxiv.org/abs/1605.05395)|[MAML](https://arxiv.org/abs/1703.03400)|Image + Text|Attention (text guided)|Fail to Converge|
+|16|[4-Conv](https://arxiv.org/abs/1605.05395)|[MAML](https://arxiv.org/abs/1703.03400)|Image + Text|Attention (text residual)|Fail to Converge|
 
