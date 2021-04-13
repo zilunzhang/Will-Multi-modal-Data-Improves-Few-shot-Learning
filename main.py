@@ -156,8 +156,8 @@ def main():
     parser.add_argument('--fusion_method', type=str, default='mean',
                         help='fusion method to text and image data')
     parser.add_argument('--ckpt', type=str,
-                        default='multimodal_best_weights/_ckpt_epoch_489.ckpt',
-                        # default=None,
+#                         default='multimodal_best_weights/_ckpt_epoch_489.ckpt',
+                        default=None,
                         help='function for selecting hp')
     args = parser.parse_args()
     print('budget, cpu, gpu: {}, {}, {}'.format(args.budgets, args.num_cpu, args.num_gpu))
